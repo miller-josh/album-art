@@ -1,51 +1,64 @@
 # Album Cover Grid
 
-A prototype of the PRD: a Pinterest-style browser for album cover art, filtered
-by decade and genre. Metadata comes from MusicBrainz, images from the Cover Art
-Archive.
+A Pinterest-style browser for album cover art, filtered by decade and genre.
+Metadata comes from MusicBrainz, images from the Cover Art Archive.
 
-Zero dependencies. Nothing to install, nothing to build.
+Stack: **Vite + React + TypeScript** for the frontend, **Vercel serverless
+functions** (`api/`) for the API layer that fronts MusicBrainz. The pure query,
+validation, normalization, throttling and caching logic lives in `lib/` and is
+shared by both.
 
-## Run it
+## Run it locally
 
 ```bash
-MB_CONTACT="https://your-site.example/contact" node server.js
-# http://localhost:3000
+npm install
+
+# Terminal 1 — the API layer (serverless handlers under a local Node harness)
+MB_CONTACT="https://your-site.example/contact" npm run dev:api   # :3000
+
+# Terminal 2 — the Vite dev server, which proxies /api to :3000
+npm run dev                                                       # :5173
 ```
 
 `MB_CONTACT` goes into the MusicBrainz User-Agent. The server boots without it
 and warns, but set it to something real before this leaves your machine.
 
 ```bash
-npm test    # 34 tests, no network required
+npm test         # 33 unit + integration tests, no network required
+npm run typecheck
+npm run build    # production frontend build (dist/)
 ```
 
-Try `http://localhost:3000/?decade=1970&genre=disco`.
+## Deploying
 
-## Why plain Node and plain JS
-
-The PRD forbids calling MusicBrainz from the browser, so this needs a server,
-which rules out a single-file artifact. Beyond that, keeping it dependency-free
-means the prototype runs the moment you clone it and the interesting logic is
-not buried under framework conventions. The Section 21 component tree maps onto
-this almost one to one, so porting to Vite + React later is mechanical: the
-`lib/` modules move to serverless functions unchanged, and `public/app.js`
-splits along the boundaries already marked by comment banners.
+Zero-config on Vercel: it detects Vite for the frontend (`dist/`) and serves the
+`api/*.ts` files as Node serverless functions. Set `MB_CONTACT` as an
+environment variable in the Vercel project.
 
 ## Layout
 
 ```
-server.js              routing, static hosting, per-IP guard, error mapping
-lib/config.js          decades, curated genres, TTLs, User-Agent, limits
-lib/lucene.js          escaping and genre normalization
-lib/query.js           decade to date range, query builder, cache keys
-lib/musicbrainz.js     upstream client: UA, throttle, retry, timeout
-lib/rate-limiter.js    serial queue enforcing one request per second
-lib/cache.js           TTL caches, including the negative cover-art cache
-lib/normalize.js       release group to AlbumCard / AlbumDetails
-lib/validate.js        filter and MBID validation
-public/                the browser app
-test/                  unit + integration tests
+index.html             Vite entry
+vite.config.ts         frontend build + /api dev proxy
+dev-server.ts          local Node harness that routes to the api/ handlers
+src/                   React app (App, api client, styles)
+api/                   Vercel serverless functions
+  albums.ts              GET  /api/albums
+  albums/[mbid].ts       GET  /api/albums/:mbid
+  genres.ts              GET  /api/genres
+  cover-status.ts        POST /api/cover-status
+  _http.ts               shared JSON/error helpers + per-IP guard
+lib/                   pure, framework-agnostic modules (shared by api + tests)
+  config.ts              decades, curated genres, TTLs, User-Agent, limits
+  lucene.ts              escaping and genre normalization
+  query.ts               decade to date range, query builder, cache keys
+  musicbrainz.ts         upstream client: UA, throttle, retry, timeout
+  rate-limiter.ts        serial queue enforcing one request per second
+  cache.ts               TTL caches, including the negative cover-art cache
+  normalize.ts           release group to AlbumCard / AlbumDetails
+  validate.ts            filter and MBID validation
+  types.ts               shared response/domain types
+test/                  unit + integration tests (run via node --test + tsx)
 ```
 
 ## API
@@ -61,7 +74,7 @@ Two small deviations from the spec, both deliberate:
 
 - `/api/genres` also returns `decades`. The PRD requires that adding earlier
   decades not duplicate code, so the allowed range is defined once in
-  `lib/config.js` and the client reads it from there rather than keeping its own
+  `lib/config.ts` and the client reads it from there rather than keeping its own
   copy. To add the 1940s, change `EARLIEST_DECADE`. Nothing else moves.
 - `POST /api/cover-status` is not in the PRD. It is how the "preferred enhanced
   strategy" negative cache in Section 12 gets populated, since only the browser
@@ -75,41 +88,32 @@ Two small deviations from the spec, both deliberate:
   push the app over the rate limit.
 - Retries are capped at 3 attempts for 429/5xx and network failures. 400 and
   404 are not retried.
-- The browser never calls MusicBrainz. It only ever calls this server.
+- The browser never calls MusicBrainz. It only ever calls this app's API.
 - One search request per page of 40 cards. No per-card metadata calls.
 - Grid uses `front-500`, detail uses `front-1200`. Originals are never used.
 
 ## What is real and what is not
 
-Implemented and tested: query building and escaping, validation, throttling,
+Done: the `lib/` logic (query building, escaping, validation, throttling,
 retry, caching, normalization and dedupe, the negative cover cache, error
-mapping, the grid, URL state, the combobox, infinite scroll with a `Load more`
-fallback, thin-coverage backfill, the detail modal, and the empty/degraded/error
-states.
+mapping) is fully ported to TypeScript and covered by the test suite; the
+serverless API layer wraps it; a working React frontend loads decades/genres,
+holds filter state in the URL, renders the grid with lazy images, hides and
+reports covers that 404, and paginates with a `Load more` control.
 
-Not done, and worth knowing before you demo it:
+Not done yet, in build order:
 
-- **The caches are in-process.** Fine for one machine. A multi-instance deploy
-  needs Redis for both the cache and the rate limiter, or each instance will
-  independently believe it is under the limit. `lib/cache.js` and
-  `lib/rate-limiter.js` are isolated so this is a swap, not a rewrite.
-- **No live API run yet.** I had no network access while building this, so the
-  upstream client is exercised against stubbed MusicBrainz responses covering
-  success, 503-then-success, exhausted retries, and malformed bodies. The shapes
-  follow the documented API, but the first real run is still the first real run.
-  Field naming is the likeliest thing to bite: check `first-release-date` and
-  `artist-credit` join phrases against a live response early.
-- **No end-to-end browser tests.** The Section 24 e2e list is unwritten. The
+- **The in-process cache and rate limiter are per-instance.** On Vercel each
+  function instance would independently believe it is under the rate limit.
+  This must move to a shared store (Redis) before any multi-instance deploy.
+  `lib/cache.ts` and `lib/rate-limiter.ts` are isolated so this is a swap.
+- **The frontend is a functional scaffold, not the final design.** The full
+  component tree, the album detail modal with focus trapping, the visual system
+  from `album-cover-grid-ui.html`, and the accessibility pass (PRD 16) are still
+  to come.
+- **No end-to-end browser tests.** The PRD Section 24 e2e list is unwritten. The
   unit and integration layers are done.
-- **Genre coverage is uneven** and that is upstream, not a bug here. Disco in
-  the 1970s is well tagged. Narrow genre plus early decade gets thin fast, which
-  is what the backfill and the two distinct empty states are for.
-
-## Design
-
-The chrome is achromatic on purpose: the only color on the page should come from
-the artwork. Catalog data (years, counts, MBIDs) is set in mono, and the active
-filter renders as a divider card standing up in a record bin, which is the one
-piece of personality in the interface. Sleeves have square corners and a hairline
-edge. Hover lifts a cover slightly, like pulling a record forward in a bin.
-Reduced motion removes all of it.
+- **Nothing has run against the live API.** The upstream client is exercised
+  only against stubbed responses. Verify `first-release-date` and
+  `artist-credit` join phrases against a real payload early — a network policy
+  may block MusicBrainz in CI/sandbox environments.

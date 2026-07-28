@@ -3,12 +3,30 @@
   "version": "0.1.0",
   "private": true,
   "description": "Pinterest-style browser for album cover art, filtered by decade and genre. MusicBrainz metadata, Cover Art Archive images.",
-  "type": "commonjs",
+  "type": "module",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "start": "node server.js",
-    "test": "node --test test/*.js"
+    "dev": "vite",
+    "dev:api": "tsx watch dev-server.ts",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vercel/node": "^5.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
   }
 }

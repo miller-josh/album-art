@@ -1,24 +1,25 @@
-'use strict';
-
 /**
  * Characters that are structural in Lucene query syntax. This mirrors
  * Lucene's own QueryParserBase.escape(), which escapes '&' and '|'
  * individually rather than treating '&&' and '||' as units.
  */
-const RESERVED = new Set([
+export const RESERVED = new Set([
   '\\', '+', '-', '!', '(', ')', ':', '^', '[', ']', '"', '{', '}',
   '~', '*', '?', '|', '&', '/',
 ]);
 
-function stripControl(s) {
-  // eslint-disable-next-line no-control-regex
-  return String(s).replace(/[\u0000-\u001f\u007f]/g, ' ');
+// Control characters (U+0000–U+001F and U+007F). Built from an escaped string
+// so no literal control bytes appear in the source.
+const CONTROL_RE = new RegExp('[\\u0000-\\u001f\\u007f]', 'g');
+
+function stripControl(s: string): string {
+  return String(s).replace(CONTROL_RE, ' ');
 }
 
 /**
  * Escape a bare (unquoted) Lucene term.
  */
-function escapeTerm(input) {
+export function escapeTerm(input: string): string {
   let out = '';
   for (const ch of stripControl(input)) {
     if (RESERVED.has(ch)) out += '\\';
@@ -35,7 +36,7 @@ function escapeTerm(input) {
  * "r&b", "drum & bass") matchable while making it impossible for input to
  * break out of the quotes.
  */
-function quotePhrase(input) {
+export function quotePhrase(input: string): string {
   const s = stripControl(input).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   return `"${s}"`;
 }
@@ -43,8 +44,6 @@ function quotePhrase(input) {
 /**
  * Canonical genre form used for querying and for cache keys.
  */
-function normalizeGenre(input) {
+export function normalizeGenre(input: string): string {
   return stripControl(input).trim().replace(/\s+/g, ' ').toLowerCase();
 }
-
-module.exports = { escapeTerm, quotePhrase, normalizeGenre, RESERVED };

@@ -1,12 +1,17 @@
-'use strict';
-
-const config = require('./config');
-const { RateLimiter, sleep } = require('./rate-limiter');
+import * as config from './config';
+import { RateLimiter, sleep } from './rate-limiter';
 
 const limiter = new RateLimiter(config.MB_MIN_INTERVAL_MS);
 
-class UpstreamError extends Error {
-  constructor(message, { status = null, retryable = false } = {}) {
+interface UpstreamErrorOptions {
+  status?: number | null;
+  retryable?: boolean;
+}
+
+export class UpstreamError extends Error {
+  status: number | null;
+  retryable: boolean;
+  constructor(message: string, { status = null, retryable = false }: UpstreamErrorOptions = {}) {
     super(message);
     this.name = 'UpstreamError';
     this.status = status;
@@ -16,29 +21,31 @@ class UpstreamError extends Error {
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
-function backoffMs(attempt) {
+function backoffMs(attempt: number): number {
   // 1s, 2s, plus jitter. Actual spacing is still governed by the limiter.
   const base = 1000 * 2 ** (attempt - 1);
   return base + Math.floor(Math.random() * 400);
 }
 
+type QueryParams = Record<string, string | number | undefined | null>;
+
 /**
  * GET a MusicBrainz web service path and parse JSON.
  *
- * @param {string} path  e.g. '/release-group'
- * @param {object} params query parameters, `fmt=json` is added automatically
+ * @param path   e.g. '/release-group'
+ * @param params query parameters, `fmt=json` is added automatically
  */
-async function mbGet(path, params = {}) {
+export async function mbGet<T = unknown>(path: string, params: QueryParams = {}): Promise<T> {
   const url = new URL(config.MB_BASE + path);
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
   }
   url.searchParams.set('fmt', 'json');
 
-  let lastError;
+  let lastError: unknown;
   for (let attempt = 1; attempt <= config.MB_MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await limiter.schedule(() => fetchOnce(url));
+      return await limiter.schedule(() => fetchOnce<T>(url));
     } catch (err) {
       lastError = err;
       const retryable = err instanceof UpstreamError ? err.retryable : true;
@@ -49,8 +56,8 @@ async function mbGet(path, params = {}) {
   throw lastError;
 }
 
-async function fetchOnce(url) {
-  let res;
+async function fetchOnce<T>(url: URL): Promise<T> {
+  let res: Response;
   try {
     res = await fetch(url, {
       headers: {
@@ -61,7 +68,7 @@ async function fetchOnce(url) {
     });
   } catch (err) {
     // Network failure or timeout. Both are worth retrying.
-    throw new UpstreamError(`MusicBrainz request failed: ${err.message}`, {
+    throw new UpstreamError(`MusicBrainz request failed: ${(err as Error).message}`, {
       retryable: true,
     });
   }
@@ -74,7 +81,7 @@ async function fetchOnce(url) {
   }
 
   try {
-    return await res.json();
+    return (await res.json()) as T;
   } catch {
     throw new UpstreamError('MusicBrainz returned a malformed JSON body', {
       status: res.status,
@@ -83,23 +90,24 @@ async function fetchOnce(url) {
   }
 }
 
-function searchReleaseGroups({ query, limit, offset }) {
+export function searchReleaseGroups({
+  query,
+  limit,
+  offset,
+}: {
+  query: string;
+  limit: number;
+  offset: number;
+}): Promise<unknown> {
   return mbGet('/release-group', { query, limit, offset });
 }
 
-function lookupReleaseGroup(mbid) {
+export function lookupReleaseGroup(mbid: string): Promise<unknown> {
   return mbGet(`/release-group/${mbid}`, { inc: 'genres' });
 }
 
-function listGenres({ limit = 100, offset = 0 } = {}) {
+export function listGenres({ limit = 100, offset = 0 }: { limit?: number; offset?: number } = {}): Promise<unknown> {
   return mbGet('/genre/all', { limit, offset });
 }
 
-module.exports = {
-  mbGet,
-  searchReleaseGroups,
-  lookupReleaseGroup,
-  listGenres,
-  UpstreamError,
-  limiter,
-};
+export { limiter };

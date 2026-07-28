@@ -1,0 +1,188 @@
+/*
+ * Basic scaffold styling. The full visual system (matching
+ * album-cover-grid-ui.html) lands with the component/design port. The chrome
+ * stays achromatic so the only colour on the page comes from the artwork.
+ */
+:root {
+  --ink: #16161a;
+  --muted: #6b6b73;
+  --line: #e3e3e6;
+  --bg: #fafafa;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.4;
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 4rem;
+}
+
+.masthead h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.field select,
+.field input {
+  font-size: 1rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  min-width: 12rem;
+}
+
+.status {
+  color: var(--muted);
+  font-size: 0.9rem;
+  min-height: 1.4em;
+}
+
+.empty {
+  padding: 2rem 0;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  gap: clamp(0.5rem, 1.5vw, 1rem);
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 480px) {
+  .grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 720px) {
+  .grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 1024px) {
+  .grid { grid-template-columns: repeat(6, 1fr); }
+}
+@media (min-width: 1400px) {
+  .grid { grid-template-columns: repeat(8, 1fr); }
+}
+
+.card a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cover {
+  aspect-ratio: 1 / 1;
+  background: #ededf0;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  transition: transform 0.15s ease;
+}
+
+.card a:hover .cover,
+.card a:focus-visible .cover {
+  transform: translateY(-3px);
+}
+
+.cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-title {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-artist {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-year {
+  margin: 0.1rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.load-more button {
+  font-size: 1rem;
+  padding: 0.6rem 1.5rem;
+  border: 1px solid var(--ink);
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+}
+
+.load-more button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.attribution {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.attribution p {
+  margin: 0.2rem 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover { transition: none; }
+  .card a:hover .cover,
+  .card a:focus-visible .cover { transform: none; }
+}

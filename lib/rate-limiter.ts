@@ -1,6 +1,5 @@
-'use strict';
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+export const sleep = (ms: number): Promise<void> =>
+  new Promise((r) => setTimeout(r, ms));
 
 /**
  * Serial queue that guarantees a minimum spacing between task starts.
@@ -10,14 +9,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * limit. Single-process only. A multi-instance deployment needs a shared
  * token bucket (Redis) instead.
  */
-class RateLimiter {
-  constructor(minIntervalMs) {
+export class RateLimiter {
+  private minIntervalMs: number;
+  private lastStart = 0;
+  private tail: Promise<unknown> = Promise.resolve();
+
+  constructor(minIntervalMs: number) {
     this.minIntervalMs = minIntervalMs;
-    this.lastStart = 0;
-    this.tail = Promise.resolve();
   }
 
-  schedule(task) {
+  schedule<T>(task: () => Promise<T>): Promise<T> {
     const run = this.tail.then(async () => {
       const wait = this.minIntervalMs - (Date.now() - this.lastStart);
       if (wait > 0) await sleep(wait);
@@ -25,9 +26,10 @@ class RateLimiter {
       return task();
     });
     // Keep the chain alive regardless of individual task failures.
-    this.tail = run.then(() => undefined, () => undefined);
+    this.tail = run.then(
+      () => undefined,
+      () => undefined,
+    );
     return run;
   }
 }
-
-module.exports = { RateLimiter, sleep };
