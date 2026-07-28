@@ -1,6 +1,6 @@
-import * as config from './config';
-import { normalizeGenre } from './lucene';
-import type { AlbumQuery } from './query';
+import * as config from './config.js';
+import { normalizeGenre } from './lucene.js';
+import type { AlbumQuery } from './query.js';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

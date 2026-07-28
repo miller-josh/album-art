@@ -1,5 +1,5 @@
-import * as config from './config';
-import { RateLimiter, sleep } from './rate-limiter';
+import * as config from './config.js';
+import { RateLimiter, sleep } from './rate-limiter.js';
 
 const limiter = new RateLimiter(config.MB_MIN_INTERVAL_MS);
 

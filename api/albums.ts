@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as config from '../lib/config';
-import * as mb from '../lib/musicbrainz';
-import { parseAlbumQuery } from '../lib/validate';
-import { buildReleaseGroupQuery, searchCacheKey } from '../lib/query';
-import { normalizeSearch } from '../lib/normalize';
-import { searchCache, noCoverCache } from '../lib/cache';
-import type { AlbumsResponse } from '../lib/types';
-import { guarded, methodNotAllowed, parseUrl, sendJson, mapError } from './_http';
+import * as config from '../lib/config.js';
+import * as mb from '../lib/musicbrainz.js';
+import { parseAlbumQuery } from '../lib/validate.js';
+import { buildReleaseGroupQuery, searchCacheKey } from '../lib/query.js';
+import { normalizeSearch } from '../lib/normalize.js';
+import { searchCache, noCoverCache } from '../lib/cache.js';
+import type { AlbumsResponse } from '../lib/types.js';
+import { guarded, methodNotAllowed, parseUrl, sendJson, mapError } from './_http.js';
 
 // GET /api/albums?decade=&genre=&offset=&limit=&q=
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {

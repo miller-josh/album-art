@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as config from '../../lib/config';
-import * as mb from '../../lib/musicbrainz';
-import { isMbid, ValidationError } from '../../lib/validate';
-import { toAlbumDetails } from '../../lib/normalize';
-import { detailCache } from '../../lib/cache';
-import { guarded, methodNotAllowed, parseUrl, sendJson, mapError } from '../_http';
+import * as config from '../../lib/config.js';
+import * as mb from '../../lib/musicbrainz.js';
+import { isMbid, ValidationError } from '../../lib/validate.js';
+import { toAlbumDetails } from '../../lib/normalize.js';
+import { detailCache } from '../../lib/cache.js';
+import { guarded, methodNotAllowed, parseUrl, sendJson, mapError } from '../_http.js';
 
 // GET /api/albums/:mbid — release-group detail with genres, fetched on demand.
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {

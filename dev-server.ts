@@ -1,12 +1,12 @@
 import http from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as config from './lib/config';
+import * as config from './lib/config.js';
 
-import albums from './api/albums';
-import albumDetail from './api/albums/[mbid]';
-import genres from './api/genres';
-import coverStatus from './api/cover-status';
+import albums from './api/albums.js';
+import albumDetail from './api/albums/[mbid].js';
+import genres from './api/genres.js';
+import coverStatus from './api/cover-status.js';
 
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<void> | void;
 

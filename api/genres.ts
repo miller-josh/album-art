@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as config from '../lib/config';
-import * as mb from '../lib/musicbrainz';
-import { parseIntParam } from '../lib/validate';
-import { genreCache } from '../lib/cache';
-import type { GenresResponse } from '../lib/types';
-import { guarded, methodNotAllowed, parseUrl, sendJson, mapError } from './_http';
+import * as config from '../lib/config.js';
+import * as mb from '../lib/musicbrainz.js';
+import { parseIntParam } from '../lib/validate.js';
+import { genreCache } from '../lib/cache.js';
+import type { GenresResponse } from '../lib/types.js';
+import { guarded, methodNotAllowed, parseUrl, sendJson, mapError } from './_http.js';
 
 interface RawGenreList {
   genres?: Array<{ name?: string }>;

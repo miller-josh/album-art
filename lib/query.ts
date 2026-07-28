@@ -1,4 +1,4 @@
-import { quotePhrase, escapeTerm, normalizeGenre } from './lucene';
+import { quotePhrase, escapeTerm, normalizeGenre } from './lucene.js';
 
 export interface DateRange {
   start: string;

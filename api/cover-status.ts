@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as config from '../lib/config';
-import { isMbid } from '../lib/validate';
-import { noCoverCache } from '../lib/cache';
-import { guarded, methodNotAllowed, readBody, sendJson, mapError } from './_http';
+import * as config from '../lib/config.js';
+import { isMbid } from '../lib/validate.js';
+import { noCoverCache } from '../lib/cache.js';
+import { guarded, methodNotAllowed, readBody, sendJson, mapError } from './_http.js';
 
 // POST /api/cover-status — the browser reports MBIDs whose artwork 404'd,
 // which is the only way to populate the negative cover cache (PRD 12).

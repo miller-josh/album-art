@@ -1,5 +1,5 @@
-import * as config from './config';
-import type { AlbumCard, AlbumDetails, AlbumGenre } from './types';
+import * as config from './config.js';
+import type { AlbumCard, AlbumDetails, AlbumGenre } from './types.js';
 
 // Loose shapes for the raw MusicBrainz JSON we read. Only the fields we touch
 // are described; everything else is ignored.

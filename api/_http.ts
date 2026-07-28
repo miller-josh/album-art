@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as config from '../lib/config';
-import { ValidationError } from '../lib/validate';
-import { UpstreamError } from '../lib/musicbrainz';
+import * as config from '../lib/config.js';
+import { ValidationError } from '../lib/validate.js';
+import { UpstreamError } from '../lib/musicbrainz.js';
 
 // These handlers deliberately depend only on the base Node request/response
 // semantics (req.url, req.method, req.socket, writeHead/end and the async

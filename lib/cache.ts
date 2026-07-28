@@ -52,8 +52,8 @@ export class TtlCache<V = unknown> {
   }
 }
 
-import type { NormalizedSearch } from './normalize';
-import type { AlbumDetails, GenresResponse } from './types';
+import type { NormalizedSearch } from './normalize.js';
+import type { AlbumDetails, GenresResponse } from './types.js';
 
 export const searchCache = new TtlCache<NormalizedSearch>({ maxEntries: 1000 });
 export const detailCache = new TtlCache<AlbumDetails>({ maxEntries: 2000 });
