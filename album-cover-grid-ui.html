@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Album Cover Grid - UI prototype</title>
+<style>
+/* ==========================================================================
+   Album Cover Grid - UI prototype
+   Chrome is achromatic on purpose: the only colour should come from artwork.
+   Catalog data (years, counts, IDs) is set in mono, like a record shop's
+   filing cards. Mock data only, no network.
+   ========================================================================== */
+
+:root {
+  --paper: #eeedea;
+  --surface: #fbfbfa;
+  --ink: #111214;
+  --ink-soft: #43443f;
+  --muted: #73726d;
+  --rule: #d6d5d0;
+  --rule-strong: #b4b3ad;
+  --accent: #2b3a97;
+  --skeleton: #e2e1dc;
+  --skeleton-sheen: #eceae5;
+  --sans: "Helvetica Neue", Helvetica, Inter, "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --gap: 14px;
+  --pad: clamp(16px, 3vw, 40px);
+  --card-max: 260px;
+}
+
+body.is-dark {
+  --paper: #131315;
+  --surface: #1a1a1d;
+  --ink: #f1efeb;
+  --ink-soft: #c7c5bf;
+  --muted: #8d8c86;
+  --rule: #2f2f34;
+  --rule-strong: #46464c;
+  --accent: #9db0ff;
+  --skeleton: #232327;
+  --skeleton-sheen: #2c2c31;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.skip-link { position: absolute; left: -9999px; top: 0; background: var(--ink); color: var(--paper); padding: 10px 16px; z-index: 30; }
+.skip-link:focus { left: 0; }
+
+/* masthead --------------------------------------------------------------- */
+
+.masthead { border-bottom: 1px solid var(--rule); padding: clamp(20px, 4vw, 44px) var(--pad) clamp(16px, 3vw, 28px); }
+.masthead__inner { max-width: 1600px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px clamp(20px, 4vw, 56px); }
+
+.wordmark {
+  margin: 0; display: flex; gap: 0.28em;
+  font-size: clamp(26px, 4.4vw, 46px); font-weight: 800;
+  letter-spacing: -0.045em; line-height: 0.92; text-transform: uppercase;
+}
+.wordmark span:last-child { -webkit-text-stroke: 1px var(--ink); color: transparent; }
+
+.masthead__blurb { margin: 0; max-width: 44ch; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+.masthead__tools { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+/* filters ---------------------------------------------------------------- */
+
+.filters { position: sticky; top: 0; z-index: 10; background: var(--paper); border-bottom: 1px solid var(--rule); padding: 14px var(--pad); }
+.filters__inner { max-width: 1600px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 18px; }
+
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field--combo { flex: 1 1 240px; max-width: 320px; }
+
+.field__label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
+.select, .combo__input {
+  appearance: none; width: 100%; min-width: 150px; padding: 9px 12px;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--rule-strong); border-radius: 2px;
+  font-family: var(--sans); font-size: 14px;
+}
+.select { padding-right: 30px; }
+
+.combo { position: relative; }
+.combo__toggle { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 30px; display: grid; place-items: center; background: none; border: 0; color: var(--muted); cursor: pointer; }
+.combo__toggle svg { width: 10px; }
+
+.combo__list {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 12;
+  margin: 0; padding: 4px; max-height: 280px; overflow-y: auto; list-style: none;
+  background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 2px;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 12%);
+}
+.combo__option { padding: 7px 10px; border-radius: 2px; cursor: pointer; font-size: 14px; }
+.combo__option--new { font-family: var(--mono); font-size: 12px; border-bottom: 1px solid var(--rule); border-radius: 0; margin-bottom: 3px; padding-bottom: 9px; }
+.combo__option[aria-selected="true"], .combo__option.is-active { background: var(--ink); color: var(--paper); }
+.combo__empty { padding: 10px; color: var(--muted); font-size: 13px; }
+
+.btn {
+  display: inline-block; padding: 9px 16px;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--rule-strong); border-radius: 2px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; text-decoration: none; cursor: pointer;
+}
+.btn:hover { border-color: var(--ink); }
+.btn--ghost { background: none; border-color: var(--rule); color: var(--muted); }
+.btn--ghost:hover { color: var(--ink); }
+.btn--primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn--primary:hover { opacity: 0.86; }
+.btn--sm { padding: 6px 10px; font-size: 10px; }
+
+/* divider (signature) ----------------------------------------------------- */
+
+.divider-wrap { max-width: 1600px; margin: 0 auto; padding: clamp(18px, 3vw, 30px) var(--pad) 0; }
+.divider { max-width: 520px; filter: drop-shadow(0 1px 0 var(--rule)); }
+.divider__tab { display: inline-block; padding: 5px 18px 4px; background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; }
+.divider__body { padding: 12px 18px 14px; background: var(--surface); border: 1px solid var(--rule-strong); border-top: 2px solid var(--ink); }
+.divider__genre { margin: 0; font-size: clamp(20px, 3vw, 30px); font-weight: 800; letter-spacing: -0.03em; text-transform: uppercase; line-height: 1.05; }
+.divider__count { margin: 6px 0 0; font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
+.divider[data-state="idle"] .divider__genre { color: var(--muted); font-weight: 500; text-transform: none; }
+
+.status { max-width: 62ch; margin: 14px 0 0; color: var(--ink-soft); font-size: 14px; }
+.status:empty { margin: 0; }
+.status[data-tone="error"] { font-weight: 600; }
+
+/* grid -------------------------------------------------------------------- */
+
+.grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap);
+  max-width: 1600px; margin: 0 auto; padding: clamp(18px, 3vw, 28px) var(--pad) 0; list-style: none;
+}
+@media (min-width: 520px)  { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 760px)  { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@media (min-width: 1240px) { .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 1500px) { .grid { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+@media (min-width: 1760px) { .grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+
+.card { min-width: 0; }
+.card[hidden] { display: none; }
+
+.card__button {
+  display: block; width: 100%; max-width: var(--card-max); padding: 0;
+  background: none; border: 0; color: inherit; text-align: left; cursor: pointer;
+  transition: transform 140ms ease;
+}
+.card__button:hover { transform: translateY(-3px); }
+.card__button:hover .card__sleeve { box-shadow: 0 10px 22px rgb(0 0 0 / 22%); }
+
+.card__sleeve {
+  position: relative; aspect-ratio: 1 / 1; background: var(--skeleton);
+  overflow: hidden; box-shadow: 0 1px 3px rgb(0 0 0 / 14%); transition: box-shadow 140ms ease;
+}
+.card__sleeve::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%); pointer-events: none; }
+
+.card__img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 220ms ease; }
+.card__img.is-loaded { opacity: 1; }
+
+.is-loading {
+  background-image: linear-gradient(100deg, var(--skeleton) 30%, var(--skeleton-sheen) 50%, var(--skeleton) 70%);
+  background-size: 220% 100%; animation: sweep 1.3s linear infinite;
+}
+@keyframes sweep { from { background-position: 140% 0; } to { background-position: -40% 0; } }
+
+.card__text { padding: 8px 2px 0; }
+.card__title { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card__artist { margin: 2px 0 0; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card__year { margin: 3px 0 0; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: var(--muted); }
+
+/* gallery foot ------------------------------------------------------------ */
+
+.gallery-foot { max-width: 1600px; margin: 0 auto; padding: 28px var(--pad) 56px; text-align: center; }
+.gallery-foot__note { max-width: 46ch; margin: 16px auto 0; color: var(--muted); font-size: 12px; }
+
+/* colophon ---------------------------------------------------------------- */
+
+.colophon { border-top: 1px solid var(--rule); padding: 24px var(--pad) 40px; }
+.colophon__inner { max-width: 1600px; margin: 0 auto; display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+.colophon p { margin: 0; }
+
+/* detail ------------------------------------------------------------------ */
+
+.sheet {
+  width: min(1040px, 94vw); max-height: 92vh; padding: 0;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--rule-strong); border-radius: 2px; overflow: auto;
+}
+.sheet::backdrop { background: rgb(10 10 12 / 72%); }
+.sheet__inner { position: relative; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(18px, 3vw, 34px); padding: clamp(18px, 3vw, 34px); }
+.sheet__close { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; color: var(--ink); cursor: pointer; }
+.sheet__close svg { width: 12px; }
+.sheet__art { aspect-ratio: 1 / 1; background: var(--skeleton); box-shadow: 0 6px 20px rgb(0 0 0 / 20%); }
+.sheet__art img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.sheet__title { margin: 0; padding-right: 40px; font-size: clamp(20px, 2.6vw, 30px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; }
+.sheet__artist { margin: 6px 0 18px; color: var(--ink-soft); font-size: 15px; }
+
+.facts { margin: 0 0 18px; border-top: 1px solid var(--rule); }
+.facts__row { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.facts dt { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+.facts dd { margin: 0; font-size: 14px; }
+
+.tags { margin-bottom: 20px; }
+.tags__label { margin: 0 0 7px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.tags__list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tags__list li { padding: 3px 9px; border: 1px solid var(--rule-strong); border-radius: 999px; font-size: 12px; color: var(--ink-soft); }
+
+.sheet__id { margin: 20px 0 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.sheet__id-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.sheet__id code { font-family: var(--mono); font-size: 11px; color: var(--muted); word-break: break-all; }
+
+@media (max-width: 720px) {
+  .sheet { width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; }
+  .sheet__inner { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* prototype-only state switcher ------------------------------------------- */
+
+.protobar {
+  position: sticky; bottom: 0; z-index: 15;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 10px var(--pad);
+  background: var(--ink); color: var(--paper);
+}
+.protobar__label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.62; margin-right: 4px; }
+.protobar .btn { background: transparent; color: var(--paper); border-color: rgb(255 255 255 / 28%); }
+.protobar .btn:hover, .protobar .btn[aria-pressed="true"] { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  .card__button:hover { transform: none; }
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#gallery">Skip to covers</a>
+
+<header class="masthead">
+  <div class="masthead__inner">
+    <h1 class="wordmark"><span>Album</span><span>Cover</span><span>Grid</span></h1>
+    <p class="masthead__blurb">Sleeve art by decade and genre. Metadata from MusicBrainz, images from the Cover Art Archive.</p>
+    <div class="masthead__tools">
+      <button class="btn btn--sm" type="button" id="theme">Dark</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="filters" aria-label="Filters">
+    <div class="filters__inner">
+      <div class="field">
+        <label class="field__label" for="decade">Decade</label>
+        <select class="select" id="decade"><option value="">Choose a decade</option></select>
+      </div>
+
+      <div class="field field--combo">
+        <label class="field__label" for="genre">Genre</label>
+        <div class="combo">
+          <input class="combo__input" id="genre" type="text" role="combobox" autocomplete="off"
+                 spellcheck="false" aria-expanded="false" aria-controls="genre-listbox"
+                 aria-autocomplete="list" placeholder="Search or type any genre">
+          <button class="combo__toggle" type="button" id="genre-toggle" aria-label="Show all genres" tabindex="-1">
+            <svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          </button>
+          <ul class="combo__list" id="genre-listbox" role="listbox" aria-label="Genres" hidden></ul>
+        </div>
+      </div>
+
+      <button class="btn btn--ghost" type="button" id="clear">Clear</button>
+    </div>
+  </section>
+
+  <section class="divider-wrap" aria-label="Current selection">
+    <div class="divider" id="divider" data-state="idle">
+      <div class="divider__tab"><span id="divider-decade">--</span></div>
+      <div class="divider__body">
+        <p class="divider__genre" id="divider-genre">Pick a decade and a genre</p>
+        <p class="divider__count" id="divider-count"></p>
+      </div>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="gallery" aria-label="Album covers">
+    <ul class="grid" id="grid"></ul>
+    <div class="gallery-foot">
+      <button class="btn" type="button" id="load-more" hidden>Load more covers</button>
+      <p class="gallery-foot__note" id="note" hidden>
+        Genre tags are community-maintained, so this is a sample rather than a complete list.
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer class="colophon">
+  <div class="colophon__inner">
+    <p>Metadata provided by MusicBrainz.</p>
+    <p>Cover images provided by the Cover Art Archive and hosted by the Internet Archive.</p>
+    <p>Cover images remain the copyright of their respective owners.</p>
+  </div>
+</footer>
+
+<div class="protobar">
+  <span class="protobar__label">Prototype states</span>
+  <button class="btn btn--sm" type="button" data-state="normal" aria-pressed="true">Normal</button>
+  <button class="btn btn--sm" type="button" data-state="loading">Loading</button>
+  <button class="btn btn--sm" type="button" data-state="thin">Some art missing</button>
+  <button class="btn btn--sm" type="button" data-state="nocovers">No covers</button>
+  <button class="btn btn--sm" type="button" data-state="empty">No matches</button>
+  <button class="btn btn--sm" type="button" data-state="error">Error</button>
+</div>
+
+<dialog class="sheet" id="detail" aria-labelledby="detail-title">
+  <div class="sheet__inner">
+    <button class="sheet__close" type="button" id="detail-close" aria-label="Close album details">
+      <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1 1l12 12M13 1L1 13" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+    </button>
+    <div class="sheet__art"><img id="detail-image" alt=""></div>
+    <div class="sheet__meta">
+      <h2 class="sheet__title" id="detail-title"></h2>
+      <p class="sheet__artist" id="detail-artist"></p>
+      <dl class="facts">
+        <div class="facts__row"><dt>First released</dt><dd id="detail-date">--</dd></div>
+        <div class="facts__row"><dt>Type</dt><dd id="detail-type">--</dd></div>
+        <div class="facts__row"><dt>Matched on</dt><dd id="detail-matched">--</dd></div>
+      </dl>
+      <div class="tags" id="detail-tags" hidden>
+        <p class="tags__label">Also tagged</p>
+        <ul class="tags__list" id="detail-tag-list"></ul>
+      </div>
+      <a class="btn btn--primary" id="detail-link" href="#" target="_blank" rel="noopener">View on MusicBrainz</a>
+      <p class="sheet__id"><span class="sheet__id-label">Release group</span><code id="detail-mbid"></code></p>
+    </div>
+  </div>
+</dialog>
+
+<script>
+/* =========================================================================
+   Mock data. No network, no API. Sleeve art is generated, so nothing here
+   reproduces real cover artwork.
+   ========================================================================= */
+
+/* Decades are generated from a single constant. Move EARLIEST_DECADE and the
+   whole control follows, no list to keep in sync. Palettes exist down to the
+   1900s, so widening the range needs nothing but this number. */
+const EARLIEST_DECADE = 1950;
+const DECADES = [];
+for (let d = EARLIEST_DECADE; d <= Math.floor(new Date().getFullYear() / 10) * 10; d += 10) {
+  DECADES.push(d);
+}
+
+/* Seed list for the combobox. It is a starting point for search, not a
+   restriction: anything typed and committed with Enter is accepted, which is
+   how the real MusicBrainz genre list (roughly 2,000 tags) behaves. */
+const GENRES = ['acid house','acid jazz','acid rock','afrobeat','alternative country',
+  'alternative rock','ambient','americana','art pop','art rock','baroque pop','bebop',
+  'big band','black metal','bluegrass','blues','blues rock','bossa nova','breakbeat',
+  'britpop','chamber pop','chanson','chillout','chiptune','city pop','classical','country',
+  'country rock','cumbia','dance','dancehall','dark wave','death metal','deep house',
+  'delta blues','disco','doo-wop','doom metal','downtempo','dream pop','drone','drum and bass',
+  'dub','dubstep','easy listening','electro','electronic','electropop','emo','experimental',
+  'exotica','folk','folk rock','free jazz','funk','fusion','gabber','garage rock','glam rock',
+  'gospel','goth rock','grime','grindcore','grunge','hard bop','hard rock','hardcore punk',
+  'heavy metal','hi-nrg','highlife','hip hop','house','indie folk','indie pop','indie rock',
+  'industrial','jazz','jazz fusion','jungle','krautrock','latin','lo-fi','lounge','math rock',
+  'mathcore','metal','metalcore','minimal','motown','neo-soul','new age','new wave','no wave',
+  'noise rock','nu metal','opera','outlaw country','post-hardcore','post-punk','post-rock',
+  'power pop','progressive rock','psychedelic rock','psychobilly','punk','r&b','ragtime',
+  'rap','reggae','reggaeton','rock','rock and roll','rockabilly','roots reggae','samba',
+  'shoegaze','ska','skiffle','slowcore','soft rock','soul','soundtrack','southern rock',
+  'space rock','spoken word','stoner rock','surf rock','swing','symphonic rock','synth-pop',
+  'techno','thrash metal','trance','trip hop','tropicalia','vaporwave','western swing',
+  'world','yacht rock','zydeco'];
+
+/* Era palettes, so a 1970s grid reads warm and a 1980s grid reads electric. */
+const PALETTES = {
+  1900: [['#241c14','#e3d5b8','#8a6b45','#4a3b2a'], ['#1e1a15','#d9cbb0','#6b5335','#3d3125']],
+  1910: [['#221d18','#ded0b4','#7d5f3c','#5a4a38'], ['#1b1916','#d5c8ae','#8a7350','#403528']],
+  1920: [['#14120f','#e8dcc0','#a8873f','#2f2a22'], ['#101418','#e0d6c2','#b39152','#38302a']],
+  1930: [['#12161a','#e6e0d2','#93794a','#2b3138'], ['#1a1512','#ddd2bd','#7f6a44','#4a3f33']],
+  1940: [['#161a1d','#e4ddcc','#6f7b6a','#9a5f3a'], ['#1d1a17','#ded4c0','#5d6b78','#a8703f']],
+  1950: [['#1c1a17','#e8e0cf','#b0472f','#d9a441'], ['#20303c','#efe7d5','#8c9e6a','#c8642f']],
+  1960: [['#122b3f','#f2e6c9','#e0562f','#f0b429'], ['#2b1f3d','#ffe9d6','#d8365f','#43b0a0']],
+  1970: [['#3a1f10','#f0d9a8','#c85c1b','#7a8c3f'], ['#2c1a2e','#f6dfae','#d1762a','#a8412f']],
+  1980: [['#100c22','#22f0d0','#f22b7e','#3b2df5'], ['#0b0b18','#ff2e63','#08d9d6','#f6f078']],
+  1990: [['#1a1a1a','#d8d5cc','#6b7f5a','#a03b26'], ['#161b21','#cfd6cf','#4a6b8a','#c4562f']],
+  2000: [['#0d1117','#e6ecf2','#3d7de0','#9b6cf0'], ['#141414','#f0f0f0','#e8464d','#3a3a3a']],
+  2010: [['#f4f2ee','#1b1b1b','#d8cfc2','#8a8377'], ['#101418','#f2f2f2','#7a8fa6','#c9b18b']],
+  2020: [['#0e0e12','#f4f1ff','#7b5cff','#22d3a7'], ['#1a1418','#ffe9f2','#ff5c8a','#4b3bd6']],
+};
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function hashString(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+/* Six sleeve treatments, picked deterministically per album. */
+function generateSleeve(seedText, decade) {
+  const rnd = mulberry32(hashString(seedText));
+  const sets = PALETTES[decade] || PALETTES[1970];
+  const p = sets[Math.floor(rnd() * sets.length)];
+  const [bg, light, a, b] = p;
+  const style = Math.floor(rnd() * 6);
+  let shapes = '';
+
+  if (style === 0) {                        // concentric rings
+    for (let i = 7; i > 0; i--) {
+      shapes += `<circle cx="${100 + rnd() * 60 - 30}" cy="${100 + rnd() * 60 - 30}" r="${i * 13}" fill="${i % 2 ? a : light}" opacity="${0.35 + i * 0.08}"/>`;
+    }
+  } else if (style === 1) {                 // horizontal bands
+    let y = 0;
+    while (y < 200) {
+      const h = 8 + rnd() * 26;
+      shapes += `<rect x="0" y="${y}" width="200" height="${h}" fill="${rnd() > 0.5 ? a : (rnd() > 0.5 ? b : light)}" opacity="0.9"/>`;
+      y += h + rnd() * 10;
+    }
+  } else if (style === 2) {                 // sunburst
+    for (let i = 0; i < 18; i++) {
+      const ang = (i / 18) * Math.PI * 2;
+      shapes += `<polygon points="100,100 ${100 + Math.cos(ang) * 200},${100 + Math.sin(ang) * 200} ${100 + Math.cos(ang + 0.18) * 200},${100 + Math.sin(ang + 0.18) * 200}" fill="${i % 2 ? a : b}" opacity="0.75"/>`;
+    }
+    shapes += `<circle cx="100" cy="100" r="${28 + rnd() * 20}" fill="${light}"/>`;
+  } else if (style === 3) {                 // dot grid
+    for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) {
+      shapes += `<circle cx="${14 + x * 25}" cy="${14 + y * 25}" r="${3 + rnd() * 9}" fill="${rnd() > 0.6 ? b : light}" opacity="0.85"/>`;
+    }
+  } else if (style === 4) {                 // diagonal blocks
+    for (let i = 0; i < 6; i++) {
+      const o = i * 40 - 60;
+      shapes += `<polygon points="${o},0 ${o + 46},0 ${o - 34},200 ${o - 80},200" fill="${i % 2 ? a : light}" opacity="0.88"/>`;
+    }
+    shapes += `<rect x="26" y="80" width="148" height="${20 + rnd() * 26}" fill="${b}" opacity="0.9"/>`;
+  } else {                                  // split field with a disc
+    shapes += `<rect x="0" y="0" width="200" height="${70 + rnd() * 60}" fill="${a}"/>`;
+    shapes += `<circle cx="${60 + rnd() * 80}" cy="${120 + rnd() * 40}" r="${30 + rnd() * 34}" fill="${light}"/>`;
+    shapes += `<rect x="0" y="${168 + rnd() * 16}" width="200" height="10" fill="${b}"/>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">` +
+    `<rect width="200" height="200" fill="${bg}"/>${shapes}</svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+/* Title and artist pools, sized to exercise the two-line clamp and the
+   one-line artist ellipsis. */
+const W1 = ['Midnight','Velvet','Electric','Golden','Silver','Crimson','Neon','Paper','Broken',
+  'Distant','Sunday','Northern','Wild','Quiet','Burning','Hollow','Glass','Sugar'];
+const W2 = ['Mirror','Avenue','Machine','Harbour','Gardens','Traffic','Cathedral','Weekend',
+  'Static','Horizon','Telephone','Ballroom','Orchard','Signal','Parade','Fever'];
+const W3 = ['','',' Revisited',' in Motion',' After Dark',' and the Long Way Home',
+  ' (Deluxe Edition)',' Vol. 2'];
+const A1 = ['The','','','Los','Young','Sister','Brother','Miss'];
+const A2 = ['Continental','Marble','Riverside','Bronze','Lantern','Tangerine','Meridian',
+  'Halcyon','Kingfisher','Ultraviolet'];
+const A3 = ['Sound','Collective','Orchestra','Union','Trio','Company','Section','Assembly','Band'];
+
+function pick(rnd, arr) { return arr[Math.floor(rnd() * arr.length)]; }
+
+function makeAlbum(decade, genre, index) {
+  const seed = `${decade}|${genre}|${index}`;
+  const rnd = mulberry32(hashString(seed));
+  const title = `${pick(rnd, W1)} ${pick(rnd, W2)}${pick(rnd, W3)}`;
+  let artist = `${pick(rnd, A1)} ${pick(rnd, A2)} ${pick(rnd, A3)}`.trim().replace(/\s+/g, ' ');
+  if (rnd() > 0.86) artist += ' feat. The Eastside Horns';
+  const year = decade + Math.floor(rnd() * 10);
+  const hex = () => Math.floor(rnd() * 16).toString(16);
+  const mbid = `${'x'.repeat(8)}-${'x'.repeat(4)}-${'x'.repeat(4)}-${'x'.repeat(4)}-${'x'.repeat(12)}`
+    .replace(/x/g, hex);
+
+  return {
+    id: mbid,
+    title,
+    artist,
+    year: rnd() > 0.94 ? null : year,
+    firstReleaseDate: `${year}-${String(1 + Math.floor(rnd() * 12)).padStart(2, '0')}-15`,
+    primaryType: 'Album',
+    secondaryTypes: rnd() > 0.9 ? ['Soundtrack'] : [],
+    genre,
+    decade,
+    extraTags: GENRES.filter(() => rnd() > 0.82).slice(0, 4),
+    cover: generateSleeve(seed, decade),
+  };
+}
+
+/* =========================================================================
+   App
+   ========================================================================= */
+
+const PAGE = 24;
+const el = (id) => document.getElementById(id);
+
+const state = { decade: null, genre: null, items: [], page: 0, mode: 'normal', selected: null };
+
+const dom = {
+  decade: el('decade'), genre: el('genre'), toggle: el('genre-toggle'), list: el('genre-listbox'),
+  clear: el('clear'), divider: el('divider'), dDecade: el('divider-decade'),
+  dGenre: el('divider-genre'), dCount: el('divider-count'), status: el('status'),
+  grid: el('grid'), more: el('load-more'), note: el('note'), theme: el('theme'),
+  detail: el('detail'), dClose: el('detail-close'), dImage: el('detail-image'),
+  dTitle: el('detail-title'), dArtist: el('detail-artist'), dDate: el('detail-date'),
+  dType: el('detail-type'), dMatched: el('detail-matched'), dTags: el('detail-tags'),
+  dTagList: el('detail-tag-list'), dLink: el('detail-link'), dMbid: el('detail-mbid'),
+};
+
+const titleCase = (s) => String(s).replace(/\b[a-z]/g, (c) => c.toUpperCase());
+
+for (const d of DECADES) {
+  const o = document.createElement('option');
+  o.value = String(d); o.textContent = `${d}s`;
+  dom.decade.append(o);
+}
+
+/* URL state --------------------------------------------------------------- */
+
+function writeUrl() {
+  const p = new URLSearchParams();
+  if (state.decade) p.set('decade', state.decade);
+  if (state.genre) p.set('genre', state.genre);
+  const next = p.toString() ? `?${p}` : location.pathname;
+  history.replaceState(null, '', next);
+}
+
+function readUrl() {
+  const p = new URLSearchParams(location.search);
+  const d = p.get('decade');
+  return { decade: d && /^\d+$/.test(d) ? Number(d) : null, genre: p.get('genre') };
+}
+
+/* combobox ---------------------------------------------------------------- */
+
+let comboOpen = false, activeIndex = -1, filtered = [];
+
+function openCombo(text = '') {
+  const needle = text.trim().toLowerCase();
+  // Matches starting with the term rank above matches containing it.
+  const matches = needle
+    ? GENRES.filter((g) => g.includes(needle))
+      .sort((a, b) => a.indexOf(needle) - b.indexOf(needle) || a.localeCompare(b))
+    : GENRES.slice();
+
+  // Anything typed is a valid genre, so it appears as the first option rather
+  // than being reachable only by knowing to press Enter. The seed list is a
+  // search aid, not a restriction.
+  const isNew = needle && !GENRES.includes(needle);
+  filtered = isNew ? [needle, ...matches] : matches;
+
+  dom.list.innerHTML = '';
+  if (!filtered.length) {
+    const li = document.createElement('li');
+    li.className = 'combo__empty';
+    li.textContent = 'Start typing to choose a genre.';
+    dom.list.append(li);
+  } else {
+    filtered.forEach((g, i) => {
+      const li = document.createElement('li');
+      li.className = 'combo__option';
+      li.id = `opt-${i}`;
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', String(g === state.genre));
+      if (isNew && i === 0) {
+        li.classList.add('combo__option--new');
+        li.textContent = `Use "${g}"`;
+      } else {
+        li.textContent = titleCase(g);
+      }
+      li.addEventListener('mousedown', (e) => { e.preventDefault(); choose(g); });
+      dom.list.append(li);
+    });
+  }
+  dom.list.hidden = false;
+  dom.genre.setAttribute('aria-expanded', 'true');
+  comboOpen = true;
+  setActive(-1);
+}
+
+function closeCombo() {
+  dom.list.hidden = true;
+  dom.genre.setAttribute('aria-expanded', 'false');
+  dom.genre.removeAttribute('aria-activedescendant');
+  comboOpen = false; activeIndex = -1;
+}
+
+function setActive(i) {
+  activeIndex = i;
+  const opts = [...dom.list.querySelectorAll('.combo__option')];
+  opts.forEach((o, n) => o.classList.toggle('is-active', n === i));
+  if (i >= 0 && opts[i]) {
+    dom.genre.setAttribute('aria-activedescendant', opts[i].id);
+    opts[i].scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function choose(g) {
+  state.genre = g;
+  dom.genre.value = titleCase(g);
+  closeCombo();
+  run();
+}
+
+dom.genre.addEventListener('input', () => openCombo(dom.genre.value));
+dom.genre.addEventListener('focus', () => { if (!comboOpen) openCombo(dom.genre.value); });
+dom.genre.addEventListener('blur', () => setTimeout(closeCombo, 120));
+dom.toggle.addEventListener('click', () => { if (comboOpen) closeCombo(); else { dom.genre.focus(); openCombo(''); } });
+
+dom.genre.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); comboOpen ? setActive(Math.min(activeIndex + 1, filtered.length - 1)) : openCombo(dom.genre.value); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(activeIndex - 1, 0)); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (comboOpen && activeIndex >= 0) choose(filtered[activeIndex]);
+    else if (dom.genre.value.trim()) choose(dom.genre.value.trim().toLowerCase());
+  }
+  else if (e.key === 'Escape' && comboOpen) { e.preventDefault(); closeCombo(); }
+});
+
+dom.decade.addEventListener('change', () => { state.decade = dom.decade.value ? Number(dom.decade.value) : null; run(); });
+dom.clear.addEventListener('click', () => { state.decade = null; state.genre = null; dom.decade.value = ''; dom.genre.value = ''; run(); });
+
+/* rendering --------------------------------------------------------------- */
+
+function renderDivider() {
+  const both = Boolean(state.decade && state.genre);
+  dom.divider.dataset.state = both ? 'active' : 'idle';
+  dom.dDecade.textContent = state.decade ? `${state.decade}s` : '--';
+  dom.dGenre.textContent = state.genre ? titleCase(state.genre) : 'Pick a decade and a genre';
+}
+
+function renderCount(total) {
+  const shown = dom.grid.querySelectorAll('.card:not([hidden])').length;
+  dom.dCount.textContent = state.decade && state.genre
+    ? `${shown} shown  ·  ${total.toLocaleString()} tagged matches` : '';
+}
+
+function skeletons(n) {
+  dom.grid.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const li = document.createElement('li');
+    li.className = 'card';
+    li.innerHTML = '<div class="card__sleeve is-loading"></div><div class="card__text">' +
+      '<p class="card__title">&nbsp;</p><p class="card__artist">&nbsp;</p></div>';
+    dom.grid.append(li);
+  }
+}
+
+function addCards(albums, missingRate) {
+  const frag = document.createDocumentFragment();
+  albums.forEach((album, i) => {
+    const li = document.createElement('li');
+    li.className = 'card';
+
+    // Deterministic stand-in for a cover that 404s at the archive.
+    const missing = missingRate > 0 && (hashString(album.id) % 100) < missingRate * 100;
+    if (missing) { li.hidden = true; }
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'card__button';
+    btn.addEventListener('click', () => openDetail(album, btn));
+
+    const sleeve = document.createElement('div');
+    sleeve.className = 'card__sleeve';
+
+    const img = document.createElement('img');
+    img.className = 'card__img';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.alt = `Cover of ${album.title} by ${album.artist}`;
+    img.src = album.cover;
+    img.addEventListener('load', () => img.classList.add('is-loaded'));
+
+    sleeve.append(img);
+
+    const text = document.createElement('div');
+    text.className = 'card__text';
+    text.innerHTML =
+      `<p class="card__title"></p><p class="card__artist"></p><p class="card__year"></p>`;
+    text.querySelector('.card__title').textContent = album.title;
+    text.querySelector('.card__artist').textContent = album.artist;
+    text.querySelector('.card__year').textContent = album.year ? album.year : 'Year unknown';
+
+    btn.append(sleeve, text);
+    li.append(btn);
+    frag.append(li);
+  });
+  dom.grid.append(frag);
+}
+
+function setStatus(text, tone = 'info', retry = false) {
+  dom.status.textContent = text || '';
+  dom.status.dataset.tone = tone;
+  if (retry && text) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn'; b.style.marginLeft = '10px';
+    b.textContent = 'Try again';
+    b.addEventListener('click', () => { state.mode = 'normal'; syncProtoButtons(); run(); });
+    dom.status.append(' ', b);
+  }
+}
+
+/* main flow --------------------------------------------------------------- */
+
+let runToken = 0;
+
+function run(append = false) {
+  writeUrl();
+  renderDivider();
+
+  if (!state.decade || !state.genre) {
+    dom.grid.innerHTML = ''; dom.more.hidden = true; dom.note.hidden = true;
+    dom.dCount.textContent = '';
+    setStatus('Choose a decade and a genre to start browsing.');
+    return;
+  }
+
+  const token = ++runToken;
+  if (!append) { state.page = 0; skeletons(PAGE); }
+  dom.more.hidden = true; dom.note.hidden = true;
+  setStatus(`Looking for ${titleCase(state.genre)} covers from the ${state.decade}s...`);
+
+  if (state.mode === 'loading') return;          // hold the skeletons
+
+  setTimeout(() => {
+    if (token !== runToken) return;              // a newer filter change won
+
+    if (state.mode === 'error') {
+      dom.grid.innerHTML = '';
+      dom.dCount.textContent = '';
+      setStatus('Album metadata is temporarily unavailable. Please try again.', 'error', true);
+      return;
+    }
+
+    if (state.mode === 'empty') {
+      dom.grid.innerHTML = '';
+      dom.dCount.textContent = '';
+      setStatus('No matching albums were found. Try another genre or decade.');
+      return;
+    }
+
+    if (state.mode === 'nocovers') {
+      dom.grid.innerHTML = '';
+      renderCount(412);
+      setStatus('Matching albums were found, but no usable front-cover images were available. Try a broader genre or another decade.');
+      return;
+    }
+
+    const missingRate = state.mode === 'thin' ? 0.45 : 0;
+    const albums = [];
+    for (let i = 0; i < PAGE; i++) albums.push(makeAlbum(state.decade, state.genre, state.page * PAGE + i));
+
+    if (!append) dom.grid.innerHTML = '';
+    addCards(albums, missingRate);
+
+    const total = 300 + (hashString(state.genre + state.decade) % 700);
+    renderCount(total);
+    setStatus('');
+    dom.more.hidden = false;
+    dom.note.hidden = false;
+  }, append ? 350 : 600);
+}
+
+dom.more.addEventListener('click', () => { state.page += 1; run(true); });
+
+/* detail ------------------------------------------------------------------ */
+
+function openDetail(album, origin) {
+  state.selected = album.id;
+  dom.dTitle.textContent = album.title;
+  dom.dArtist.textContent = album.artist;
+  dom.dDate.textContent = album.firstReleaseDate;
+  dom.dType.textContent = [album.primaryType, ...album.secondaryTypes].filter(Boolean).join(' · ');
+  dom.dMatched.textContent = `${titleCase(album.genre)} · ${album.decade}s`;
+  dom.dImage.src = album.cover;
+  dom.dImage.alt = `Cover of ${album.title} by ${album.artist}`;
+  dom.dMbid.textContent = album.id;
+  dom.dLink.href = `https://musicbrainz.org/release-group/${album.id}`;
+
+  dom.dTagList.innerHTML = '';
+  const tags = album.extraTags.filter((t) => t !== album.genre);
+  if (tags.length) {
+    for (const t of tags) {
+      const li = document.createElement('li');
+      li.textContent = titleCase(t);
+      dom.dTagList.append(li);
+    }
+    dom.dTags.hidden = false;
+  } else {
+    dom.dTags.hidden = true;
+  }
+
+  dom.detail.showModal();          // native focus trap, Escape, focus restore
+  dom.detail.returnTo = origin;
+}
+
+dom.dClose.addEventListener('click', () => dom.detail.close());
+dom.detail.addEventListener('click', (e) => { if (e.target === dom.detail) dom.detail.close(); });
+dom.detail.addEventListener('close', () => {
+  const origin = dom.detail.returnTo;
+  if (origin && document.contains(origin)) origin.focus();
+});
+
+/* prototype state switcher ------------------------------------------------ */
+
+const protoButtons = [...document.querySelectorAll('.protobar .btn')];
+function syncProtoButtons() {
+  protoButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.state === state.mode)));
+}
+protoButtons.forEach((b) => b.addEventListener('click', () => {
+  state.mode = b.dataset.state;
+  syncProtoButtons();
+  if (!state.decade || !state.genre) { state.decade = 1970; state.genre = 'disco'; dom.decade.value = '1970'; dom.genre.value = 'Disco'; }
+  run();
+}));
+
+/* theme ------------------------------------------------------------------- */
+
+if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.body.classList.add('is-dark');
+dom.theme.textContent = document.body.classList.contains('is-dark') ? 'Light' : 'Dark';
+dom.theme.addEventListener('click', () => {
+  document.body.classList.toggle('is-dark');
+  dom.theme.textContent = document.body.classList.contains('is-dark') ? 'Light' : 'Dark';
+});
+
+/* boot -------------------------------------------------------------------- */
+
+(function init() {
+  const { decade, genre } = readUrl();
+  state.decade = (decade && DECADES.includes(decade)) ? decade : 1970;
+  state.genre = genre ? genre.trim().toLowerCase() : 'disco';
+  dom.decade.value = String(state.decade);
+  dom.genre.value = titleCase(state.genre);
+  run();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Album Cover Grid</title>
+<meta name="description" content="Browse album cover art by decade and genre, using MusicBrainz and the Cover Art Archive.">
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+
+<a class="skip-link" href="#gallery">Skip to covers</a>
+
+<header class="masthead">
+  <div class="masthead__inner">
+    <h1 class="wordmark">
+      <span class="wordmark__line">Album</span>
+      <span class="wordmark__line">Cover</span>
+      <span class="wordmark__line wordmark__line--alt">Grid</span>
+    </h1>
+    <p class="masthead__blurb">
+      Sleeve art by decade and genre. Metadata from MusicBrainz, images from the
+      Cover Art Archive.
+    </p>
+  </div>
+</header>
+
+<main>
+  <!-- Filters -->
+  <section class="filters" aria-label="Filters">
+    <div class="filters__inner">
+
+      <div class="field">
+        <label class="field__label" for="decade">Decade</label>
+        <select class="select" id="decade" name="decade">
+          <option value="">Choose a decade</option>
+        </select>
+      </div>
+
+      <div class="field field--combo">
+        <label class="field__label" for="genre">Genre</label>
+        <div class="combo" id="genre-combo">
+          <input
+            class="combo__input"
+            id="genre"
+            name="genre"
+            type="text"
+            role="combobox"
+            autocomplete="off"
+            spellcheck="false"
+            aria-expanded="false"
+            aria-controls="genre-listbox"
+            aria-autocomplete="list"
+            placeholder="Type to search genres">
+          <button class="combo__toggle" type="button" id="genre-toggle" aria-label="Show all genres" tabindex="-1">
+            <svg viewBox="0 0 10 6" aria-hidden="true" focusable="false"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          </button>
+          <ul class="combo__list" id="genre-listbox" role="listbox" aria-label="Genres" hidden></ul>
+        </div>
+      </div>
+
+      <button class="btn btn--ghost" type="button" id="clear-filters">Clear</button>
+    </div>
+  </section>
+
+  <!-- Active filter summary: the divider card -->
+  <section class="divider-wrap" aria-label="Current selection">
+    <div class="divider" id="divider" data-state="idle">
+      <div class="divider__tab"><span id="divider-decade">--</span></div>
+      <div class="divider__body">
+        <p class="divider__genre" id="divider-genre">Pick a decade and a genre</p>
+        <p class="divider__count" id="divider-count"></p>
+      </div>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite" tabindex="-1"></p>
+  </section>
+
+  <!-- Gallery -->
+  <section id="gallery" aria-label="Album covers">
+    <ul class="grid" id="grid"></ul>
+
+    <div class="gallery-foot">
+      <div class="sentinel" id="sentinel" aria-hidden="true"></div>
+      <button class="btn" type="button" id="load-more" hidden>Load more covers</button>
+      <p class="gallery-foot__note" id="exhaustive-note" hidden>
+        Genre tags are community-maintained, so this is a sample rather than a
+        complete list.
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer class="colophon">
+  <div class="colophon__inner">
+    <p>Metadata provided by <a href="https://musicbrainz.org" rel="noopener noreferrer" target="_blank">MusicBrainz</a>.</p>
+    <p>Cover images provided by the <a href="https://coverartarchive.org" rel="noopener noreferrer" target="_blank">Cover Art Archive</a> and hosted by the <a href="https://archive.org" rel="noopener noreferrer" target="_blank">Internet Archive</a>.</p>
+    <p>Cover images remain the copyright of their respective owners. This project neither owns nor relicenses any artwork.</p>
+  </div>
+</footer>
+
+<!-- Album detail -->
+<dialog class="sheet" id="detail" aria-labelledby="detail-title">
+  <div class="sheet__inner">
+    <button class="sheet__close" type="button" id="detail-close" aria-label="Close album details">
+      <svg viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M1 1l12 12M13 1L1 13" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+    </button>
+
+    <div class="sheet__art">
+      <img id="detail-image" alt="" width="1200" height="1200">
+    </div>
+
+    <div class="sheet__meta">
+      <h2 class="sheet__title" id="detail-title"></h2>
+      <p class="sheet__artist" id="detail-artist"></p>
+
+      <dl class="facts">
+        <div class="facts__row"><dt>First released</dt><dd id="detail-date">--</dd></div>
+        <div class="facts__row"><dt>Type</dt><dd id="detail-type">--</dd></div>
+        <div class="facts__row"><dt>Matched on</dt><dd id="detail-matched">--</dd></div>
+      </dl>
+
+      <div class="tags" id="detail-genres" hidden>
+        <p class="tags__label">Also tagged</p>
+        <ul class="tags__list" id="detail-genre-list"></ul>
+      </div>
+
+      <a class="btn btn--primary" id="detail-link" href="#" rel="noopener noreferrer" target="_blank">
+        View on MusicBrainz
+      </a>
+
+      <p class="sheet__id">
+        <span class="sheet__id-label">Release group</span>
+        <code id="detail-mbid"></code>
+      </p>
+    </div>
+  </div>
+</dialog>
+
+<script src="/app.js" type="module"></script>
+</body>
+</html>
