@@ -1,14 +1,12 @@
-'use strict';
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
 
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-
-const { escapeTerm, quotePhrase, normalizeGenre } = require('../lib/lucene');
-const { decadeToRange, buildReleaseGroupQuery, searchCacheKey } = require('../lib/query');
-const { artistCreditToString, parseYear, toAlbumCard, normalizeSearch } = require('../lib/normalize');
-const { parseAlbumQuery, isMbid, ValidationError } = require('../lib/validate');
-const { TtlCache } = require('../lib/cache');
-const config = require('../lib/config');
+import { escapeTerm, quotePhrase, normalizeGenre } from '../lib/lucene';
+import { decadeToRange, buildReleaseGroupQuery, searchCacheKey } from '../lib/query';
+import { artistCreditToString, parseYear, toAlbumCard, normalizeSearch } from '../lib/normalize';
+import { parseAlbumQuery, isMbid, ValidationError } from '../lib/validate';
+import { TtlCache } from '../lib/cache';
+import * as config from '../lib/config';
 
 const MBID = '0f6d4b6a-1d3f-4d8e-9c2a-3b1e5f7a9c11';
 
@@ -21,7 +19,7 @@ test('decade converts to an inclusive date range', () => {
 
 test('decade rejects non-decade values', () => {
   assert.throws(() => decadeToRange(1975), TypeError);
-  assert.throws(() => decadeToRange('abc'), TypeError);
+  assert.throws(() => decadeToRange('abc' as unknown as number), TypeError);
 });
 
 test('allowed decades are generated, not hardcoded', () => {
@@ -67,7 +65,7 @@ test('builds the documented default query', () => {
   assert.equal(
     q,
     'firstreleasedate:[1970-01-01 TO 1979-12-31] AND tag:"disco" ' +
-    'AND primarytype:album AND status:official',
+      'AND primarytype:album AND status:official',
   );
 });
 
@@ -75,6 +73,15 @@ test('multiword genres stay quoted', () => {
   const q = buildReleaseGroupQuery({ decade: 1980, genre: 'New Wave' });
   assert.ok(q.includes('tag:"new wave"'));
   assert.ok(q.includes('firstreleasedate:[1980-01-01 TO 1989-12-31]'));
+});
+
+test('omits the tag clause when no genre is given', () => {
+  const q = buildReleaseGroupQuery({ decade: 1970, genre: '' });
+  assert.equal(
+    q,
+    'firstreleasedate:[1970-01-01 TO 1979-12-31] AND primarytype:album AND status:official',
+  );
+  assert.ok(!q.includes('tag:'));
 });
 
 test('optional text never replaces the decade and genre restrictions', () => {
@@ -132,6 +139,7 @@ test('normalizes a release group into an AlbumCard', () => {
     score: 100,
     'artist-credit': [{ name: 'Various Artists' }],
   });
+  assert.ok(card);
   assert.equal(card.year, 1977);
   assert.equal(card.artist, 'Various Artists');
   assert.deepEqual(card.secondaryTypes, ['Soundtrack']);
@@ -180,12 +188,19 @@ test('accepts a valid album query', () => {
   assert.deepEqual(p, { decade: 1970, genre: 'disco', offset: 0, limit: 40, text: '' });
 });
 
+test('genre is optional and resolves blank/any to no genre', () => {
+  const any = { decade: 1970, genre: '', offset: 0, limit: 40, text: '' };
+  assert.deepEqual(parseAlbumQuery(new URLSearchParams('decade=1970')), any);
+  assert.deepEqual(parseAlbumQuery(new URLSearchParams('decade=1970&genre=')), any);
+  assert.deepEqual(parseAlbumQuery(new URLSearchParams('decade=1970&genre=Any')), any);
+  assert.deepEqual(parseAlbumQuery(new URLSearchParams('decade=1970&genre=%20%20')), any);
+});
+
 test('rejects invalid filters', () => {
   const bad = [
-    'genre=disco',                 // no decade
-    'decade=1970',                 // no genre
-    'decade=1975&genre=disco',     // not a decade start
-    'decade=1870&genre=disco',     // outside the allowed range
+    'genre=disco', // no decade
+    'decade=1975&genre=disco', // not a decade start
+    'decade=1870&genre=disco', // outside the allowed range
     'decade=abc&genre=disco',
     `decade=1970&genre=${'x'.repeat(81)}`,
     'decade=1970&genre=disco&limit=41',
@@ -214,7 +229,7 @@ test('validates MBIDs before they reach an upstream path', () => {
 /* ---------------------------------------------------------------- cache */
 
 test('cache expires entries and caps its size', () => {
-  const c = new TtlCache({ maxEntries: 2 });
+  const c = new TtlCache<number>({ maxEntries: 2 });
   c.set('a', 1, 50);
   assert.equal(c.get('a'), 1);
   c.set('b', 2, 50);
@@ -222,7 +237,7 @@ test('cache expires entries and caps its size', () => {
   assert.equal(c.size, 2);
   assert.equal(c.get('a'), undefined); // evicted
 
-  const d = new TtlCache();
+  const d = new TtlCache<string>();
   d.set('x', 'v', -1);
   assert.equal(d.get('x'), undefined); // expired
 });

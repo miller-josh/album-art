@@ -1,27 +1,34 @@
-'use strict';
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import type { AddressInfo } from 'node:net';
 
-const { test, before, after } = require('node:test');
-const assert = require('node:assert/strict');
+// Shorten the throttle interval before any config-dependent module loads. The
+// limiter reads this at construction, so the imports below must be dynamic and
+// happen after the env var is set. The spacing behaviour is asserted later.
+process.env.MB_MIN_INTERVAL_MS = '40';
 
-// Shorten the throttle interval before the limiter is constructed. The
-// spacing behaviour itself is asserted below against this value.
-const config = require('../lib/config');
-config.MB_MIN_INTERVAL_MS = 40;
-
-const { server } = require('../server');
-const { searchCache, detailCache, genreCache, noCoverCache } = require('../lib/cache');
+const config = await import('../lib/config');
+const { server } = await import('../dev-server');
+const { searchCache, detailCache, genreCache, noCoverCache } = await import('../lib/cache');
 
 const MBID = '0f6d4b6a-1d3f-4d8e-9c2a-3b1e5f7a9c11';
 const MBID2 = '11111111-2222-3333-4444-555555555555';
 
-let base;
+let base: string;
 const realFetch = globalThis.fetch;
 
-/** Queue of canned upstream responses, plus a log of the URLs requested. */
-let upstream = [];
-const calls = [];
+interface FakeResponse {
+  ok: boolean;
+  status: number;
+  json?: () => Promise<unknown>;
+  text?: () => Promise<string>;
+}
 
-function jsonResponse(body, status = 200) {
+/** Queue of canned upstream responses, plus a log of the URLs requested. */
+let upstream: Array<FakeResponse | Error> = [];
+const calls: Array<{ url: string; at: number }> = [];
+
+function jsonResponse(body: unknown, status = 200): FakeResponse {
   return {
     ok: status >= 200 && status < 300,
     status,
@@ -29,7 +36,15 @@ function jsonResponse(body, status = 200) {
   };
 }
 
-function searchPayload(ids, count = ids.length) {
+function textResponse(body: string, status = 200): FakeResponse {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => body,
+  };
+}
+
+function searchPayload(ids: string[], count = ids.length) {
   return {
     count,
     'release-groups': ids.map((id, i) => ({
@@ -44,31 +59,33 @@ function searchPayload(ids, count = ids.length) {
 }
 
 before(async () => {
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = (async (url: unknown) => {
     calls.push({ url: String(url), at: Date.now() });
     const next = upstream.shift();
     if (!next) return jsonResponse({ count: 0, 'release-groups': [] });
     if (next instanceof Error) throw next;
     return next;
-  };
+  }) as unknown as typeof fetch;
 
-  await new Promise((resolve) => server.listen(0, resolve));
-  base = `http://127.0.0.1:${server.address().port}`;
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
 after(async () => {
   globalThis.fetch = realFetch;
-  await new Promise((resolve) => server.close(resolve));
+  await new Promise<void>((resolve, reject) =>
+    server.close((err) => (err ? reject(err) : resolve())),
+  );
 });
 
 function reset() {
   upstream = [];
   calls.length = 0;
-  for (const c of [searchCache, detailCache, genreCache, noCoverCache]) c.map.clear();
+  for (const c of [searchCache, detailCache, genreCache, noCoverCache]) c.clear();
 }
 
 /** The browser talks to our API using the real fetch, not the stub. */
-const get = (path, init) => realFetch(base + path, init);
+const get = (path: string, init?: RequestInit) => realFetch(base + path, init);
 
 /* ------------------------------------------------------------------ tests */
 
@@ -93,8 +110,8 @@ test('search returns normalized items with cover URLs', async () => {
   // The upstream request carried the escaped query and a real User-Agent.
   const upstreamUrl = new URL(calls[0].url);
   assert.equal(upstreamUrl.searchParams.get('fmt'), 'json');
-  assert.ok(upstreamUrl.searchParams.get('query').includes('tag:"disco"'));
-  assert.ok(upstreamUrl.searchParams.get('query').includes('1970-01-01 TO 1979-12-31'));
+  assert.ok(upstreamUrl.searchParams.get('query')!.includes('tag:"disco"'));
+  assert.ok(upstreamUrl.searchParams.get('query')!.includes('1970-01-01 TO 1979-12-31'));
 });
 
 test('identical searches are served from cache', async () => {
@@ -117,11 +134,20 @@ test('invalid filters return a structured 400', async () => {
   assert.equal(calls.length, 0, 'invalid input must not reach upstream');
 });
 
-test('missing genre returns 400 without calling upstream', async () => {
+test('genre is optional — a decade alone browses the whole decade', async () => {
   reset();
+  upstream.push(jsonResponse(searchPayload([MBID, MBID2], 500)));
+
   const res = await get('/api/albums?decade=1970');
-  assert.equal(res.status, 400);
-  assert.equal(calls.length, 0);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.items.length, 2);
+
+  // The upstream query drops the tag clause but keeps the decade and type.
+  const query = new URL(calls[0].url).searchParams.get('query')!;
+  assert.ok(!query.includes('tag:'), 'no tag clause when genre is omitted');
+  assert.ok(query.includes('1970-01-01 TO 1979-12-31'));
+  assert.ok(query.includes('primarytype:album'));
 });
 
 test('retries a 503 and then succeeds', async () => {
@@ -195,20 +221,25 @@ test('reported missing covers are filtered from later searches', async () => {
 
 test('album detail returns genres and rejects a bad MBID', async () => {
   reset();
-  upstream.push(jsonResponse({
-    id: MBID,
-    title: 'Album 0',
-    'first-release-date': '1977-11-15',
-    'primary-type': 'Album',
-    'artist-credit': [{ name: 'Chic' }],
-    genres: [{ name: 'disco', count: 9 }, { name: 'funk', count: 3 }],
-  }));
+  upstream.push(
+    jsonResponse({
+      id: MBID,
+      title: 'Album 0',
+      'first-release-date': '1977-11-15',
+      'primary-type': 'Album',
+      'artist-credit': [{ name: 'Chic' }],
+      genres: [{ name: 'disco', count: 9 }, { name: 'funk', count: 3 }],
+    }),
+  );
 
   const ok = await get(`/api/albums/${MBID}`);
   assert.equal(ok.status, 200);
   const body = await ok.json();
   assert.equal(body.title, 'Album 0');
-  assert.deepEqual(body.genres.map((g) => g.name), ['disco', 'funk']);
+  assert.deepEqual(
+    body.genres.map((g: { name: string }) => g.name),
+    ['disco', 'funk'],
+  );
 
   const bad = await get('/api/albums/not-a-uuid');
   assert.equal(bad.status, 400);
@@ -217,12 +248,26 @@ test('album detail returns genres and rejects a bad MBID', async () => {
 
 test('album detail is cached', async () => {
   reset();
-  upstream.push(jsonResponse({
-    id: MBID, title: 'X', 'artist-credit': [{ name: 'Y' }], genres: [],
-  }));
+  upstream.push(
+    jsonResponse({ id: MBID, title: 'X', 'artist-credit': [{ name: 'Y' }], genres: [] }),
+  );
   await get(`/api/albums/${MBID}`);
   await get(`/api/albums/${MBID}`);
   assert.equal(calls.length, 1);
+});
+
+test('genre list is the full text list from MusicBrainz, sorted', async () => {
+  reset();
+  upstream.push(textResponse('rock\ndisco\nhip hop\n\n   \n'));
+
+  const res = await get('/api/genres');
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.source, 'musicbrainz');
+  assert.deepEqual(body.genres, ['disco', 'hip hop', 'rock']);
+  assert.ok(Array.isArray(body.decades) && body.decades.includes(1970));
+  // The upstream request used the plain-text full-list variant, not paginated JSON.
+  assert.equal(new URL(calls[0].url).searchParams.get('fmt'), 'txt');
 });
 
 test('genre list falls back to the curated list when upstream fails', async () => {
@@ -240,19 +285,9 @@ test('genre list falls back to the curated list when upstream fails', async () =
   assert.ok(Array.isArray(body.decades) && body.decades.includes(1970));
 });
 
-test('serves the app shell and blocks path traversal', async () => {
-  reset();
-  const page = await get('/');
-  assert.equal(page.status, 200);
-  assert.match(page.headers.get('content-type'), /text\/html/);
-  assert.match(await page.text(), /Album Cover Grid/);
-
-  const traversal = await get('/../server.js');
-  assert.ok([400, 403, 404].includes(traversal.status), `got ${traversal.status}`);
-});
-
-test('unknown API endpoints and methods are rejected', async () => {
+test('unknown endpoints and disallowed methods are rejected', async () => {
   reset();
   assert.equal((await get('/api/nope')).status, 404);
-  assert.equal((await get('/api/albums', { method: 'DELETE' })).status, 404);
+  // The albums route exists but only allows GET/HEAD, so DELETE is a 405.
+  assert.equal((await get('/api/albums', { method: 'DELETE' })).status, 405);
 });

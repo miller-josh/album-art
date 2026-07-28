@@ -41,6 +41,7 @@ tradeoff.
 | Decision | Detail | Status |
 | --- | --- | --- |
 | Genre accepts free text | Any typed value is valid and appears as the first option in the combobox. The 140-item seed list is a search aid, not a gate | Supersedes the curated-list combobox in PRD 7 |
+| Genre is optional | A decade alone browses the whole decade. Blank, absent, or a literal `any` drops the `tag:` clause; the client omits the param and shows an "Any genre" control | Supersedes the required-genre rule in PRD 10.1 |
 | Decades are generated | From a single `EARLIEST_DECADE` constant, currently 1950, through the current decade | Supersedes the hardcoded list in PRD 7 |
 | `/api/genres` also returns `decades` | So the allowed range has exactly one definition and the client does not keep a copy | Extends PRD 10.2 |
 | `POST /api/cover-status` | Browser reports MBIDs whose artwork 404s, which is the only way to populate the negative cache | Implements the enhanced strategy in PRD 12 |
@@ -68,10 +69,14 @@ functions with an import-syntax change and nothing else.
 Sections 1 through 6 of PRD 25 are effectively done in the reusable modules
 above. Remaining:
 
-1. Scaffold Vite + React + TS, port `lib/` into the API layer.
+1. ~~Scaffold Vite + React + TS, port `lib/` into the API layer.~~ **Done.**
+   `lib/` is TypeScript ESM, the API layer is Vercel serverless functions under
+   `api/` (with a `dev-server.ts` harness for local dev and the tests), and the
+   test suite is ported. A functional-but-basic React frontend is in `src/`.
 2. Swap the cache and rate limiter for Redis.
 3. Rebuild the UI as components, matching `album-cover-grid-ui.html`. Component
-   tree is in PRD 21.
+   tree is in PRD 21. The `src/` app is a working scaffold, not the final
+   design: still needs the detail modal, the visual system, and the a11y pass.
 4. Wire real data, then verify field names against a live response before
    trusting anything downstream.
 5. End-to-end tests per PRD 24. None exist yet.

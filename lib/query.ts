@@ -1,12 +1,23 @@
-'use strict';
+import { quotePhrase, escapeTerm, normalizeGenre } from './lucene.js';
 
-const { quotePhrase, escapeTerm, normalizeGenre } = require('./lucene');
+export interface DateRange {
+  start: string;
+  end: string;
+}
+
+export interface AlbumQuery {
+  decade: number;
+  genre: string;
+  offset: number;
+  limit: number;
+  text?: string;
+}
 
 /**
  * A decade is represented internally by its starting year (1970) and
  * expanded to an inclusive date range at query time.
  */
-function decadeToRange(decade) {
+export function decadeToRange(decade: number): DateRange {
   const start = Number(decade);
   if (!Number.isInteger(start) || start % 10 !== 0) {
     throw new TypeError(`decade must be a multiple of 10, received ${decade}`);
@@ -23,14 +34,20 @@ function decadeToRange(decade) {
  *
  * `text` is optional and can never replace the decade and genre restrictions.
  */
-function buildReleaseGroupQuery({ decade, genre, text }) {
+export function buildReleaseGroupQuery({
+  decade,
+  genre,
+  text,
+}: Pick<AlbumQuery, 'decade' | 'genre' | 'text'>): string {
   const { start, end } = decadeToRange(decade);
-  const clauses = [
-    `firstreleasedate:[${start} TO ${end}]`,
-    `tag:${quotePhrase(normalizeGenre(genre))}`,
-    'primarytype:album',
-    'status:official',
-  ];
+  const clauses = [`firstreleasedate:[${start} TO ${end}]`];
+
+  // Genre is optional. With no genre the search browses the whole decade, so
+  // the tag clause is omitted rather than matching an empty tag.
+  const g = normalizeGenre(genre || '');
+  if (g) clauses.push(`tag:${quotePhrase(g)}`);
+
+  clauses.push('primarytype:album', 'status:official');
 
   const trimmed = typeof text === 'string' ? text.trim() : '';
   if (trimmed) {
@@ -44,11 +61,16 @@ function buildReleaseGroupQuery({ decade, genre, text }) {
 /**
  * Cache key covering every parameter that shapes the upstream request.
  */
-function searchCacheKey({ decade, genre, offset, limit, text }) {
-  const base = `albums:v1:decade=${decade}:genre=${normalizeGenre(genre)}` +
+export function searchCacheKey({
+  decade,
+  genre,
+  offset,
+  limit,
+  text,
+}: AlbumQuery): string {
+  const base =
+    `albums:v1:decade=${decade}:genre=${normalizeGenre(genre)}` +
     `:offset=${offset}:limit=${limit}`;
   const t = typeof text === 'string' ? text.trim().toLowerCase() : '';
   return t ? `${base}:text=${t}` : base;
 }
-
-module.exports = { decadeToRange, buildReleaseGroupQuery, searchCacheKey };

@@ -1,23 +1,34 @@
-'use strict';
+import * as config from './config.js';
+import { normalizeGenre } from './lucene.js';
+import type { AlbumQuery } from './query.js';
 
-const config = require('./config');
-const { normalizeGenre } = require('./lucene');
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-class ValidationError extends Error {
-  constructor(message, code = 'INVALID_FILTER') {
+export class ValidationError extends Error {
+  code: string;
+  constructor(message: string, code = 'INVALID_FILTER') {
     super(message);
     this.name = 'ValidationError';
     this.code = code;
   }
 }
 
-function isMbid(value) {
+export function isMbid(value: unknown): value is string {
   return typeof value === 'string' && UUID_RE.test(value);
 }
 
-function parseIntParam(raw, { name, min, max, fallback }) {
+interface IntParamOptions {
+  name: string;
+  min: number;
+  max: number;
+  fallback: number;
+}
+
+export function parseIntParam(
+  raw: string | null | undefined,
+  { name, min, max, fallback }: IntParamOptions,
+): number {
   if (raw === undefined || raw === null || raw === '') return fallback;
   if (!/^-?\d+$/.test(String(raw).trim())) {
     throw new ValidationError(`${name} must be an integer.`);
@@ -32,7 +43,7 @@ function parseIntParam(raw, { name, min, max, fallback }) {
 /**
  * Validate and normalize the /api/albums query string.
  */
-function parseAlbumQuery(searchParams) {
+export function parseAlbumQuery(searchParams: URLSearchParams): AlbumQuery {
   const rawDecade = searchParams.get('decade');
   if (rawDecade === null || rawDecade === '') {
     throw new ValidationError('A decade is required.');
@@ -45,17 +56,19 @@ function parseAlbumQuery(searchParams) {
     throw new ValidationError('The requested decade or genre is invalid.');
   }
 
+  // Genre is optional. Absent, blank, or the literal "any" means "browse the
+  // whole decade" — the tag clause is dropped and the genre resolves to ''.
   const rawGenre = searchParams.get('genre');
-  if (!rawGenre || !rawGenre.trim()) {
-    throw new ValidationError('A genre is required.');
+  let genre = '';
+  if (rawGenre && rawGenre.trim()) {
+    if (rawGenre.length > config.MAX_GENRE_LENGTH) {
+      throw new ValidationError(
+        `Genre must be ${config.MAX_GENRE_LENGTH} characters or fewer.`,
+      );
+    }
+    const normalized = normalizeGenre(rawGenre);
+    genre = normalized === 'any' ? '' : normalized;
   }
-  if (rawGenre.length > config.MAX_GENRE_LENGTH) {
-    throw new ValidationError(
-      `Genre must be ${config.MAX_GENRE_LENGTH} characters or fewer.`,
-    );
-  }
-  const genre = normalizeGenre(rawGenre);
-  if (!genre) throw new ValidationError('A genre is required.');
 
   const offset = parseIntParam(searchParams.get('offset'), {
     name: 'offset', min: 0, max: config.MAX_OFFSET, fallback: 0,
@@ -69,5 +82,3 @@ function parseAlbumQuery(searchParams) {
 
   return { decade, genre, offset, limit, text };
 }
-
-module.exports = { ValidationError, isMbid, parseIntParam, parseAlbumQuery };
