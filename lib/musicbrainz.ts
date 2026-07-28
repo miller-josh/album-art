@@ -29,23 +29,28 @@ function backoffMs(attempt: number): number {
 
 type QueryParams = Record<string, string | number | undefined | null>;
 
-/**
- * GET a MusicBrainz web service path and parse JSON.
- *
- * @param path   e.g. '/release-group'
- * @param params query parameters, `fmt=json` is added automatically
- */
-export async function mbGet<T = unknown>(path: string, params: QueryParams = {}): Promise<T> {
+function buildUrl(path: string, params: QueryParams, defaultFmt: string): URL {
   const url = new URL(config.MB_BASE + path);
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
   }
-  url.searchParams.set('fmt', 'json');
+  if (!url.searchParams.has('fmt')) url.searchParams.set('fmt', defaultFmt);
+  return url;
+}
 
+/**
+ * Fetch a MusicBrainz URL through the shared rate limiter, retrying transient
+ * failures, and parse the body with `parse`. `accept` sets the Accept header.
+ */
+async function request<T>(
+  url: URL,
+  accept: string,
+  parse: (res: Response) => Promise<T>,
+): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= config.MB_MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await limiter.schedule(() => fetchOnce<T>(url));
+      return await limiter.schedule(() => fetchOnce(url, accept, parse));
     } catch (err) {
       lastError = err;
       const retryable = err instanceof UpstreamError ? err.retryable : true;
@@ -56,13 +61,17 @@ export async function mbGet<T = unknown>(path: string, params: QueryParams = {})
   throw lastError;
 }
 
-async function fetchOnce<T>(url: URL): Promise<T> {
+async function fetchOnce<T>(
+  url: URL,
+  accept: string,
+  parse: (res: Response) => Promise<T>,
+): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, {
       headers: {
         'User-Agent': config.USER_AGENT,
-        Accept: 'application/json',
+        Accept: accept,
       },
       signal: AbortSignal.timeout(config.MB_TIMEOUT_MS),
     });
@@ -81,13 +90,23 @@ async function fetchOnce<T>(url: URL): Promise<T> {
   }
 
   try {
-    return (await res.json()) as T;
+    return await parse(res);
   } catch {
-    throw new UpstreamError('MusicBrainz returned a malformed JSON body', {
+    throw new UpstreamError('MusicBrainz returned a malformed body', {
       status: res.status,
       retryable: false,
     });
   }
+}
+
+/** GET a MusicBrainz path and parse JSON (`fmt=json` added automatically). */
+export function mbGet<T = unknown>(path: string, params: QueryParams = {}): Promise<T> {
+  return request<T>(buildUrl(path, params, 'json'), 'application/json', (r) => r.json() as Promise<T>);
+}
+
+/** GET a MusicBrainz path as plain text (`fmt=txt` added automatically). */
+export function mbGetText(path: string, params: QueryParams = {}): Promise<string> {
+  return request<string>(buildUrl(path, params, 'txt'), 'text/plain', (r) => r.text());
 }
 
 export function searchReleaseGroups({
@@ -106,8 +125,13 @@ export function lookupReleaseGroup(mbid: string): Promise<unknown> {
   return mbGet(`/release-group/${mbid}`, { inc: 'genres' });
 }
 
-export function listGenres({ limit = 100, offset = 0 }: { limit?: number; offset?: number } = {}): Promise<unknown> {
-  return mbGet('/genre/all', { limit, offset });
+/**
+ * The complete MusicBrainz genre list, as a newline-delimited plain-text body.
+ * The `fmt=txt` variant of /genre/all returns every genre in one response, so
+ * we avoid paginating ~2000 genres one throttled request at a time.
+ */
+export function listGenresText(): Promise<string> {
+  return mbGetText('/genre/all');
 }
 
 export { limiter };

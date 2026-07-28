@@ -50,7 +50,10 @@ export function App() {
     fetchGenres(ctrl.signal)
       .then((data) => {
         setDecades(data.decades);
-        setGenreOptions(data.genres.length ? data.genres : data.curated);
+        // Merge the curated recognizable names with the full MusicBrainz list
+        // so common genres always surface, deduped and alphabetized.
+        const merged = Array.from(new Set([...data.curated, ...data.genres])).sort();
+        setGenreOptions(merged);
       })
       .catch(() => {
         /* filters still render from whatever we have */

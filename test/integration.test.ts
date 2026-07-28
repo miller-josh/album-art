@@ -20,7 +20,8 @@ const realFetch = globalThis.fetch;
 interface FakeResponse {
   ok: boolean;
   status: number;
-  json: () => Promise<unknown>;
+  json?: () => Promise<unknown>;
+  text?: () => Promise<string>;
 }
 
 /** Queue of canned upstream responses, plus a log of the URLs requested. */
@@ -32,6 +33,14 @@ function jsonResponse(body: unknown, status = 200): FakeResponse {
     ok: status >= 200 && status < 300,
     status,
     json: async () => body,
+  };
+}
+
+function textResponse(body: string, status = 200): FakeResponse {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => body,
   };
 }
 
@@ -245,6 +254,20 @@ test('album detail is cached', async () => {
   await get(`/api/albums/${MBID}`);
   await get(`/api/albums/${MBID}`);
   assert.equal(calls.length, 1);
+});
+
+test('genre list is the full text list from MusicBrainz, sorted', async () => {
+  reset();
+  upstream.push(textResponse('rock\ndisco\nhip hop\n\n   \n'));
+
+  const res = await get('/api/genres');
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.source, 'musicbrainz');
+  assert.deepEqual(body.genres, ['disco', 'hip hop', 'rock']);
+  assert.ok(Array.isArray(body.decades) && body.decades.includes(1970));
+  // The upstream request used the plain-text full-list variant, not paginated JSON.
+  assert.equal(new URL(calls[0].url).searchParams.get('fmt'), 'txt');
 });
 
 test('genre list falls back to the curated list when upstream fails', async () => {
