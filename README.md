@@ -70,7 +70,11 @@ test/                  unit + integration tests (run via node --test + tsx)
 | `GET /api/genres` | MusicBrainz genre list, falls back to the curated list |
 | `POST /api/cover-status` | Browser reports MBIDs whose artwork 404'd |
 
-Two small deviations from the spec, both deliberate:
+Genre is optional: `decade` alone browses the whole decade. A blank, absent, or
+literal `any` genre drops the `tag:` clause from the MusicBrainz query. This
+deviates from PRD 10.1 (which requires a genre) by product decision.
+
+Two more small deviations from the spec, both deliberate:
 
 - `/api/genres` also returns `decades`. The PRD requires that adding earlier
   decades not duplicate code, so the allowed range is defined once in

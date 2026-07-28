@@ -56,17 +56,19 @@ export function parseAlbumQuery(searchParams: URLSearchParams): AlbumQuery {
     throw new ValidationError('The requested decade or genre is invalid.');
   }
 
+  // Genre is optional. Absent, blank, or the literal "any" means "browse the
+  // whole decade" — the tag clause is dropped and the genre resolves to ''.
   const rawGenre = searchParams.get('genre');
-  if (!rawGenre || !rawGenre.trim()) {
-    throw new ValidationError('A genre is required.');
+  let genre = '';
+  if (rawGenre && rawGenre.trim()) {
+    if (rawGenre.length > config.MAX_GENRE_LENGTH) {
+      throw new ValidationError(
+        `Genre must be ${config.MAX_GENRE_LENGTH} characters or fewer.`,
+      );
+    }
+    const normalized = normalizeGenre(rawGenre);
+    genre = normalized === 'any' ? '' : normalized;
   }
-  if (rawGenre.length > config.MAX_GENRE_LENGTH) {
-    throw new ValidationError(
-      `Genre must be ${config.MAX_GENRE_LENGTH} characters or fewer.`,
-    );
-  }
-  const genre = normalizeGenre(rawGenre);
-  if (!genre) throw new ValidationError('A genre is required.');
 
   const offset = parseIntParam(searchParams.get('offset'), {
     name: 'offset', min: 0, max: config.MAX_OFFSET, fallback: 0,

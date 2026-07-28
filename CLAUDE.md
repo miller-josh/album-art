@@ -41,6 +41,7 @@ tradeoff.
 | Decision | Detail | Status |
 | --- | --- | --- |
 | Genre accepts free text | Any typed value is valid and appears as the first option in the combobox. The 140-item seed list is a search aid, not a gate | Supersedes the curated-list combobox in PRD 7 |
+| Genre is optional | A decade alone browses the whole decade. Blank, absent, or a literal `any` drops the `tag:` clause; the client omits the param and shows an "Any genre" control | Supersedes the required-genre rule in PRD 10.1 |
 | Decades are generated | From a single `EARLIEST_DECADE` constant, currently 1950, through the current decade | Supersedes the hardcoded list in PRD 7 |
 | `/api/genres` also returns `decades` | So the allowed range has exactly one definition and the client does not keep a copy | Extends PRD 10.2 |
 | `POST /api/cover-status` | Browser reports MBIDs whose artwork 404s, which is the only way to populate the negative cache | Implements the enhanced strategy in PRD 12 |

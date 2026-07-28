@@ -20,15 +20,16 @@ export function fetchGenres(signal?: AbortSignal): Promise<GenresResponse> {
 }
 
 export function fetchAlbums(
-  params: { decade: number; genre: string; offset: number; limit?: number },
+  params: { decade: number; genre?: string | null; offset: number; limit?: number },
   signal?: AbortSignal,
 ): Promise<AlbumsResponse> {
   const q = new URLSearchParams({
     decade: String(params.decade),
-    genre: params.genre,
     offset: String(params.offset),
     limit: String(params.limit ?? 40),
   });
+  // Genre is optional; omit it entirely to browse the whole decade.
+  if (params.genre && params.genre.trim()) q.set('genre', params.genre.trim());
   return getJson<AlbumsResponse>(`/api/albums?${q}`, signal);
 }
 

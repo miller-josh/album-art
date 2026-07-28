@@ -40,12 +40,14 @@ export function buildReleaseGroupQuery({
   text,
 }: Pick<AlbumQuery, 'decade' | 'genre' | 'text'>): string {
   const { start, end } = decadeToRange(decade);
-  const clauses = [
-    `firstreleasedate:[${start} TO ${end}]`,
-    `tag:${quotePhrase(normalizeGenre(genre))}`,
-    'primarytype:album',
-    'status:official',
-  ];
+  const clauses = [`firstreleasedate:[${start} TO ${end}]`];
+
+  // Genre is optional. With no genre the search browses the whole decade, so
+  // the tag clause is omitted rather than matching an empty tag.
+  const g = normalizeGenre(genre || '');
+  if (g) clauses.push(`tag:${quotePhrase(g)}`);
+
+  clauses.push('primarytype:album', 'status:official');
 
   const trimmed = typeof text === 'string' ? text.trim() : '';
   if (trimmed) {

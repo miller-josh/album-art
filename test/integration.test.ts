@@ -125,11 +125,20 @@ test('invalid filters return a structured 400', async () => {
   assert.equal(calls.length, 0, 'invalid input must not reach upstream');
 });
 
-test('missing genre returns 400 without calling upstream', async () => {
+test('genre is optional — a decade alone browses the whole decade', async () => {
   reset();
+  upstream.push(jsonResponse(searchPayload([MBID, MBID2], 500)));
+
   const res = await get('/api/albums?decade=1970');
-  assert.equal(res.status, 400);
-  assert.equal(calls.length, 0);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.items.length, 2);
+
+  // The upstream query drops the tag clause but keeps the decade and type.
+  const query = new URL(calls[0].url).searchParams.get('query')!;
+  assert.ok(!query.includes('tag:'), 'no tag clause when genre is omitted');
+  assert.ok(query.includes('1970-01-01 TO 1979-12-31'));
+  assert.ok(query.includes('primarytype:album'));
 });
 
 test('retries a 503 and then succeeds', async () => {

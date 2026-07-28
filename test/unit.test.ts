@@ -75,6 +75,15 @@ test('multiword genres stay quoted', () => {
   assert.ok(q.includes('firstreleasedate:[1980-01-01 TO 1989-12-31]'));
 });
 
+test('omits the tag clause when no genre is given', () => {
+  const q = buildReleaseGroupQuery({ decade: 1970, genre: '' });
+  assert.equal(
+    q,
+    'firstreleasedate:[1970-01-01 TO 1979-12-31] AND primarytype:album AND status:official',
+  );
+  assert.ok(!q.includes('tag:'));
+});
+
 test('optional text never replaces the decade and genre restrictions', () => {
   const q = buildReleaseGroupQuery({ decade: 1970, genre: 'disco', text: 'Chic' });
   assert.ok(q.includes('tag:"disco"'));
@@ -179,10 +188,17 @@ test('accepts a valid album query', () => {
   assert.deepEqual(p, { decade: 1970, genre: 'disco', offset: 0, limit: 40, text: '' });
 });
 
+test('genre is optional and resolves blank/any to no genre', () => {
+  const any = { decade: 1970, genre: '', offset: 0, limit: 40, text: '' };
+  assert.deepEqual(parseAlbumQuery(new URLSearchParams('decade=1970')), any);
+  assert.deepEqual(parseAlbumQuery(new URLSearchParams('decade=1970&genre=')), any);
+  assert.deepEqual(parseAlbumQuery(new URLSearchParams('decade=1970&genre=Any')), any);
+  assert.deepEqual(parseAlbumQuery(new URLSearchParams('decade=1970&genre=%20%20')), any);
+});
+
 test('rejects invalid filters', () => {
   const bad = [
     'genre=disco', // no decade
-    'decade=1970', // no genre
     'decade=1975&genre=disco', // not a decade start
     'decade=1870&genre=disco', // outside the allowed range
     'decade=abc&genre=disco',

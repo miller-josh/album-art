@@ -65,7 +65,8 @@ export function App() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const active = filters.decade !== null && filters.genre !== null;
+  // Genre is optional: a decade alone browses the whole decade.
+  const active = filters.decade !== null;
 
   // Fetch the first page whenever the active filters change. An AbortController
   // discards stale responses so a slow request can never repopulate the grid
@@ -83,7 +84,7 @@ export function App() {
     setItems([]);
     setOffset(0);
     fetchAlbums(
-      { decade: filters.decade!, genre: filters.genre!, offset: 0, limit: PAGE_SIZE },
+      { decade: filters.decade!, genre: filters.genre, offset: 0, limit: PAGE_SIZE },
       ctrl.signal,
     )
       .then((data) => {
@@ -107,7 +108,7 @@ export function App() {
     const ctrl = new AbortController();
     setLoading(true);
     fetchAlbums(
-      { decade: filters.decade!, genre: filters.genre!, offset, limit: PAGE_SIZE },
+      { decade: filters.decade!, genre: filters.genre, offset, limit: PAGE_SIZE },
       ctrl.signal,
     )
       .then((data) => {
@@ -176,11 +177,11 @@ export function App() {
         </label>
 
         <label className="field">
-          <span>Genre</span>
+          <span>Genre <span className="optional">(optional)</span></span>
           <input
             list="genre-options"
             value={filters.genre ?? ''}
-            placeholder="e.g. disco"
+            placeholder="Any genre"
             onChange={(e) =>
               updateFilters({ ...filters, genre: e.target.value.trim() || null })
             }
@@ -191,24 +192,38 @@ export function App() {
             ))}
           </datalist>
         </label>
+
+        {filters.genre !== null && (
+          <button
+            type="button"
+            className="clear-genre"
+            onClick={() => updateFilters({ ...filters, genre: null })}
+          >
+            Any genre
+          </button>
+        )}
       </form>
 
       <p className="status" role="status" aria-live="polite">
         {!active
-          ? 'Choose a decade and genre to begin.'
+          ? 'Choose a decade to begin. Genre is optional.'
           : loading && visible.length === 0
             ? 'Loading covers…'
             : error
               ? error
               : total !== null
-                ? `${visible.length} shown${total ? ` of about ${total} matches` : ''}. Genre coverage is community-maintained and never complete.`
+                ? `${visible.length} shown${total ? ` of about ${total} matches` : ''}. ${
+                    filters.genre
+                      ? 'Genre coverage is community-maintained and never complete.'
+                      : 'Results are never presented as complete.'
+                  }`
                 : ''}
       </p>
 
       {active && !loading && !error && visible.length === 0 && (
         <p className="empty">
           {total === 0
-            ? 'No matching albums were found. Try another genre or decade.'
+            ? `No matching albums were found. Try another ${filters.genre ? 'genre or decade' : 'decade'}.`
             : 'Matching albums were found, but no usable front-cover images were available. Try a broader genre or another decade.'}
         </p>
       )}
